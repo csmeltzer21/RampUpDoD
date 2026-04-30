@@ -6,6 +6,8 @@
 <title>INNERGY® ARR Ramp-Up Planner</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root {
   /* INNERGY Brand */
@@ -46,7 +48,7 @@ header{background:var(--innergy-dark);color:#fff;padding:0 2rem;display:flex;ali
 .tab.active{background:var(--innergy-dark);color:#fff}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:1.25rem;box-shadow:var(--sh-sm);margin-bottom:1rem}
 .card-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:1rem}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:1rem 1.1rem;box-shadow:var(--sh-sm)}
 .kpi-label{font-size:11px;color:var(--text3);font-weight:500;margin-bottom:5px}
 .kpi-val{font-size:24px;font-weight:600;font-family:'DM Mono',monospace;color:var(--navy);line-height:1}
@@ -85,6 +87,7 @@ tr.r-normal td{background:var(--surface)}
 .badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
 .b-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
 .b-teal{background:var(--teal-pale);color:var(--teal);border:1px solid #5eead4}
+.b-orange{background:#fff7ed;color:#9a3412;border:1px solid #fdba74}
 .b-purple{background:#f0f0f8;color:var(--innergy-dark);border:1px solid var(--border2)}
 .b-blue{background:var(--innergy-orange-pale);color:var(--innergy-orange);border:1px solid var(--innergy-orange-border)}
 .b-gray{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
@@ -109,6 +112,7 @@ tr.r-normal td{background:var(--surface)}
 .toolbar-left{display:flex;align-items:center;gap:8px}
 .tbtn{padding:5px 13px;border-radius:var(--r);font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
 .tbtn:hover{border-color:var(--innergy-orange);color:var(--innergy-orange);background:var(--innergy-orange-pale)}
+.year-pair-tab.active-pair{background:var(--innergy-dark);color:#fff;border-color:var(--innergy-dark)}
 .hint{font-size:11px;color:var(--text3)}
 .row-input{height:26px;border:1px solid var(--border2);border-radius:5px;padding:0 6px;font-size:12px;font-family:'DM Mono',monospace;color:var(--text);background:#fff;width:70px}
 .row-input:focus{outline:none;border-color:var(--innergy-orange)}
@@ -227,6 +231,7 @@ footer{text-align:center;padding:1.5rem 2rem;font-size:11px;color:var(--text3);b
   </div>
   <div class="hbtns">
     <button class="hbtn hbtn-ghost" onclick="exportCSV()">Export CSV</button>
+    <button class="hbtn hbtn-ghost" onclick="exportPDF()" id="pdf-btn">Export PDF</button>
     <button class="hbtn hbtn-solid" onclick="rebuild()">Recalculate</button>
   </div>
 </header>
@@ -270,8 +275,8 @@ footer{text-align:center;padding:1.5rem 2rem;font-size:11px;color:var(--text3);b
             <th>#</th><th>Month</th><th>New customers</th>
             <th>Cumul. customers</th><th>Total drafters</th>
             <th>MRR</th><th>ARR (run rate)</th>
-            <th>2026 ARR target</th><th>2027 ARR target</th>
-            <th>Gap to 2026</th><th>Gap to 2027</th>
+            <th>Year target</th>
+            <th>Gap to target</th>
             <th>Cumul. revenue</th><th>Status</th><th></th>
           </tr></thead>
           <tbody id="sched-body"></tbody>
@@ -359,13 +364,16 @@ footer{text-align:center;padding:1.5rem 2rem;font-size:11px;color:var(--text3);b
       <div class="params-grid" style="margin-bottom:1rem">
         <div class="field"><label>2026 ARR target ($)</label><input type="number" id="p-arr26" value="2000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
         <div class="field"><label>2027 ARR target ($)</label><input type="number" id="p-arr27" value="6000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
+        <div class="field"><label>2028 ARR target ($)</label><input type="number" id="p-arr28" value="10000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
+        <div class="field"><label>2029 ARR target ($)</label><input type="number" id="p-arr29" value="14000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
+        <div class="field"><label>2030 ARR target ($)</label><input type="number" id="p-arr30" value="18000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
         <div class="field"><label>Program start month</label>
           <select id="p-start" oninput="rebuild()">
             <option value="3">Mar 2026</option>
             <option value="4">Apr 2026</option>
-            <option value="5" selected>May 2026</option>
+            <option value="5">May 2026</option>
             <option value="6">Jun 2026</option>
-            <option value="7">Jul 2026</option>
+            <option value="7" selected>Jul 2026</option>
           </select>
         </div>
       </div>
@@ -373,16 +381,25 @@ footer{text-align:center;padding:1.5rem 2rem;font-size:11px;color:var(--text3);b
     </div>
     <div class="card">
       <div class="card-title">Monthly onboarding pace</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-        <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem">2026 monthly additions</div>
-          <div id="pace-tracker-2026"></div>
-          <div id="sliders-2026"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:500;color:var(--text2)">Viewing year pair:</span>
+        <div style="display:flex;gap:4px" id="year-pair-tabs">
+          <button class="tbtn year-pair-tab active-pair" onclick="setYearPair(2026,2027,this)">2026 / 2027</button>
+          <button class="tbtn year-pair-tab" onclick="setYearPair(2028,2029,this)">2028 / 2029</button>
+          <button class="tbtn year-pair-tab" onclick="setYearPair(2030,null,this)">2030</button>
         </div>
+        <span style="font-size:11px;color:var(--text3)" id="slider-year-hint">Showing 2026 &amp; 2027 additions</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem" id="slider-columns">
         <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem">2027 monthly additions</div>
-          <div id="pace-tracker-2027"></div>
-          <div id="sliders-2027"></div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem" id="slider-col-a-label">2026 monthly additions</div>
+          <div id="pace-tracker-a"></div>
+          <div id="sliders-a"></div>
+        </div>
+        <div id="slider-col-b-wrap">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem" id="slider-col-b-label">2027 monthly additions</div>
+          <div id="pace-tracker-b"></div>
+          <div id="sliders-b"></div>
         </div>
       </div>
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -414,7 +431,7 @@ const US_HOL = {
   "2026-11-27":"Day after Thanksgiving","2026-12-25":"Christmas Day",
   "2027-01-01":"New Year's Day","2027-01-18":"MLK Day","2027-02-15":"Presidents Day",
   "2027-05-31":"Memorial Day","2027-07-05":"Independence Day (obs.)","2027-09-06":"Labor Day",
-  "2027-11-25":"Thanksgiving","2027-11-26":"Day after Thanksgiving","2027-12-24":"Christmas Eve","2027-12-31":"New Year's Eve"
+  "2027-11-25":"Thanksgiving","2027-11-26":"Day after Thanksgiving","2027-12-24":"Christmas Eve","2027-12-31":"New Year's Eve","2028-01-01":"New Year's Day","2028-05-29":"Memorial Day","2028-07-04":"Independence Day","2028-09-04":"Labor Day","2028-11-23":"Thanksgiving","2028-12-25":"Christmas Day","2029-01-01":"New Year's Day","2029-05-28":"Memorial Day","2029-07-04":"Independence Day","2029-09-03":"Labor Day","2029-11-22":"Thanksgiving","2029-12-25":"Christmas Day","2030-01-01":"New Year's Day","2030-05-27":"Memorial Day","2030-07-04":"Independence Day","2030-09-02":"Labor Day","2030-11-28":"Thanksgiving","2030-12-25":"Christmas Day"
 };
 const PH_HOL = {
   "2026-05-01":"Labor Day (PH)","2026-05-28":"Eidul Adha","2026-06-12":"Independence Day (PH)",
@@ -423,7 +440,7 @@ const PH_HOL = {
   "2026-12-24":"Christmas Eve (PH)","2026-12-25":"Christmas Day (PH)","2026-12-30":"Rizal Day","2026-12-31":"New Year Eve (PH)",
   "2027-01-01":"New Year's Day (PH)","2027-04-01":"Maundy Thursday","2027-04-02":"Good Friday",
   "2027-05-01":"Labor Day (PH)","2027-06-12":"Independence Day (PH)","2027-08-30":"National Heroes Day",
-  "2027-11-01":"All Saints Day (PH)","2027-11-30":"Bonifacio Day (PH)","2027-12-25":"Christmas Day (PH)","2027-12-30":"Rizal Day (PH)"
+  "2027-11-01":"All Saints Day (PH)","2027-11-30":"Bonifacio Day (PH)","2027-12-25":"Christmas Day (PH)","2027-12-30":"Rizal Day (PH)","2028-01-01":"New Year's Day (PH)","2028-04-13":"Maundy Thursday","2028-04-14":"Good Friday","2028-05-01":"Labor Day (PH)","2028-06-12":"Independence Day (PH)","2028-08-28":"National Heroes Day","2028-11-01":"All Saints Day (PH)","2028-11-30":"Bonifacio Day (PH)","2028-12-25":"Christmas Day (PH)","2028-12-30":"Rizal Day (PH)","2029-01-01":"New Year's Day (PH)","2029-05-01":"Labor Day (PH)","2029-06-12":"Independence Day (PH)","2029-08-27":"National Heroes Day","2029-11-01":"All Saints Day (PH)","2029-11-30":"Bonifacio Day (PH)","2029-12-25":"Christmas Day (PH)","2029-12-30":"Rizal Day (PH)","2030-01-01":"New Year's Day (PH)","2030-05-01":"Labor Day (PH)","2030-06-12":"Independence Day (PH)","2030-08-26":"National Heroes Day","2030-11-01":"All Saints Day (PH)","2030-11-30":"Bonifacio Day (PH)","2030-12-25":"Christmas Day (PH)","2030-12-30":"Rizal Day (PH)"
 };
 
 function isoDate(d){return d.toISOString().slice(0,10)}
@@ -469,6 +486,9 @@ function saveToStorage() {
         sc:     document.getElementById('p-sc')?.value,
         arr26:  document.getElementById('p-arr26')?.value,
         arr27:  document.getElementById('p-arr27')?.value,
+        arr28:  document.getElementById('p-arr28')?.value,
+        arr29:  document.getElementById('p-arr29')?.value,
+        arr30:  document.getElementById('p-arr30')?.value,
         startM: document.getElementById('p-start')?.value,
       }
     };
@@ -498,6 +518,9 @@ function applyStoredSettings(s) {
   set('p-sc',    s.sc);
   set('p-arr26', s.arr26);
   set('p-arr27', s.arr27);
+  set('p-arr28', s.arr28);
+  set('p-arr29', s.arr29);
+  set('p-arr30', s.arr30);
   set('p-start', s.startM);
 }
 
@@ -511,7 +534,10 @@ function clearAllData() {
   document.getElementById('p-sc').value    = 7;
   document.getElementById('p-arr26').value = 2000000;
   document.getElementById('p-arr27').value = 6000000;
-  document.getElementById('p-start').value = 5;
+  document.getElementById('p-arr28').value = 10000000;
+  document.getElementById('p-arr29').value = 14000000;
+  document.getElementById('p-arr30').value = 18000000;
+  document.getElementById('p-start').value = 7;
   autoFill();
   const el = document.getElementById('save-indicator');
   if (el) { document.getElementById('save-indicator-text').textContent = 'Reset to defaults'; el.style.opacity='1'; setTimeout(()=>el.style.opacity='0',2500); }
@@ -534,8 +560,15 @@ function getP(){
     sc:    +document.getElementById('p-sc').value    ||7,
     arr26: +document.getElementById('p-arr26').value ||2000000,
     arr27: +document.getElementById('p-arr27').value ||6000000,
-    startM:+document.getElementById('p-start').value ||5,
+    arr28: +document.getElementById('p-arr28').value ||10000000,
+    arr29: +document.getElementById('p-arr29').value ||14000000,
+    arr30: +document.getElementById('p-arr30').value ||18000000,
+    startM:+document.getElementById('p-start').value ||7,
   };
+}
+// Helper: get ARR target for a given year
+function arrTarget(p, y) {
+  return {2026:p.arr26,2027:p.arr27,2028:p.arr28,2029:p.arr29,2030:p.arr30}[y] || 0;
 }
 
 function fmtMoney(n,compact=false){
@@ -551,7 +584,8 @@ function monthLabel(y,m){return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug',
 function allMonths(startM){
   const out=[];
   for(let m=startM;m<=12;m++)out.push({y:2026,m});
-  for(let m=1;m<=12;m++)out.push({y:2027,m});
+  for(let y=2027;y<=2030;y++)
+    for(let m=1;m<=12;m++)out.push({y,m});
   return out;
 }
 function getAdd(y,m){return monthlyAdds[monthKey(y,m)]||0;}
@@ -625,8 +659,12 @@ function calcSchedule(){
   let newCustIdx=0,runningDrafters=baseDrafters,cumRev=0,cumCust=p.sc;
   const revenuePerCustDefault=p.dpm*p.dpc;
   const arrPerCustDefault=revenuePerCustDefault*12;
-  const cust26Needed=Math.ceil(p.arr26/arrPerCustDefault);
-  const cust27Needed=Math.ceil(p.arr27/arrPerCustDefault);
+  // Needed customers per year-end
+  const custNeeded={};
+  [2026,2027,2028,2029,2030].forEach(y=>{
+    const t=arrTarget(p,y);
+    custNeeded[y]=t>0?Math.ceil(t/arrPerCustDefault):0;
+  });
   const rows=[];
   for(const{y,m}of months){
     const newThisMonth=getAdd(y,m);
@@ -640,11 +678,12 @@ function calcSchedule(){
     const mrr=runningDrafters*p.dpm;
     const arr=mrr*12;
     cumRev+=mrr;
+    const yTarget=arrTarget(p,y);
     rows.push({y,m,newC:newThisMonth,cumCust,drafters:runningDrafters,mrr,arr,cumRev,
-               gap26:p.arr26-arr,gap27:p.arr27-arr,
-               isGoal26:y===2026&&m===12,isGoal27:y===2027&&m===12});
+               yearTarget:yTarget, gapYear:yTarget-arr,
+               isYearEnd:m===12, onTrack:arr>=yTarget});
   }
-  return{rows,cust26Needed,cust27Needed,arrPerCustDefault,revenuePerCustDefault,p,goLiveList,baseDrafters};
+  return{rows,custNeeded,arrPerCustDefault,revenuePerCustDefault,p,goLiveList,baseDrafters};
 }
 
 // ══════════════════════════════════════
@@ -663,7 +702,7 @@ function buildWeeklyPlan(){
 
   const today=new Date();
   // Find the first Friday of the program
-  const startDate=new Date(2026,p.startM-1,1);
+  const startDate=new Date(2026,p.startM-1,1); // Program always starts in 2026
   let programStart=nextFriday(startDate);
 
   // Build a list of weekly events {fri, events:[]}
@@ -833,20 +872,31 @@ function renderWeeklyPlan(){
 function autoFill(){
   const p=getP();
   const arrPerCust=p.dpm*p.dpc*12;
-  const cust26=Math.ceil(p.arr26/arrPerCust);
-  const cust27=Math.ceil(p.arr27/arrPerCust);
+  const targets={
+    2026:Math.ceil(p.arr26/arrPerCust),
+    2027:Math.ceil(p.arr27/arrPerCust),
+    2028:Math.ceil(p.arr28/arrPerCust),
+    2029:Math.ceil(p.arr29/arrPerCust),
+    2030:Math.ceil(p.arr30/arrPerCust),
+  };
+  let prevCum=p.sc;
+  // 2026: startM to Dec
   const months26=12-p.startM+1;
-  const need26=Math.max(0,cust26-p.sc);
+  const need26=Math.max(0,targets[2026]-prevCum);
   const adds26=Array(months26).fill(0);
   let left=need26;
   for(let i=months26-1;i>=0&&left>0;i--){const a=Math.min(left,Math.ceil(need26/months26)+(i>=months26/2?1:0));adds26[i]=a;left-=a;}
   for(let i=0;left>0;i=(i+1)%months26){adds26[i]++;left--;}
   adds26.forEach((a,i)=>setAdd(2026,p.startM+i,a));
-  const need27=Math.max(0,cust27-cust26);
-  const adds27=Array(12).fill(0);
-  let left27=need27;
-  for(let i=0;i<12&&left27>0;i++){const a=Math.min(left27,Math.ceil(need27/12)+(i<need27%12?1:0));adds27[i]=a;left27-=a;}
-  adds27.forEach((a,i)=>setAdd(2027,i+1,a));
+  prevCum=targets[2026];
+  // 2027-2030: full 12 months each
+  for(let y=2027;y<=2030;y++){
+    const need=Math.max(0,targets[y]-prevCum);
+    const adds=Array(12).fill(0);let rem=need;
+    for(let i=0;i<12&&rem>0;i++){const a=Math.min(rem,Math.ceil(need/12)+(i<need%12?1:0));adds[i]=a;rem-=a;}
+    adds.forEach((a,i)=>setAdd(y,i+1,a));
+    prevCum=targets[y];
+  }
   saveToStorage();
   rebuild();
 }
@@ -856,50 +906,41 @@ function clearMonthly(){monthlyAdds={};saveToStorage();rebuild();}
 // RENDER KPIs
 // ══════════════════════════════════════
 function renderKPIs(data){
-  const{rows,cust26Needed,cust27Needed,p}=data;
-  const dec26=rows.find(r=>r.y===2026&&r.m===12);
-  const dec27=rows.find(r=>r.y===2027&&r.m===12);
-  const arr26=dec26?.arr||0,arr27=dec27?.arr||0;
-  const hit26=arr26>=p.arr26,hit27=arr27>=p.arr27;
-  const pct26=Math.min(100,(arr26/p.arr26)*100),pct27=Math.min(100,(arr27/p.arr27)*100);
-  document.getElementById('kpis').innerHTML=`
-    <div class="kpi ${hit26?'ok':'warn'}">
-      <div class="kpi-label">2026 ARR (Dec run rate)</div><div class="kpi-val">${fmtMoney(arr26,true)}</div>
-      <div class="prog-wrap"><div class="prog-bar" style="width:${pct26}%;background:${hit26?'#4ade80':'#fbbf24'}"></div></div>
-      <div class="kpi-sub">${pct26.toFixed(0)}% of ${fmtMoney(p.arr26,true)} target</div>
-    </div>
-    <div class="kpi ${hit27?'ok':'warn'}">
-      <div class="kpi-label">2027 ARR (Dec run rate)</div><div class="kpi-val">${fmtMoney(arr27,true)}</div>
-      <div class="prog-wrap"><div class="prog-bar" style="width:${pct27}%;background:${hit27?'#4ade80':'#fbbf24'}"></div></div>
-      <div class="kpi-sub">${pct27.toFixed(0)}% of ${fmtMoney(p.arr27,true)} target</div>
-    </div>
-    <div class="kpi info">
-      <div class="kpi-label">Customers needed</div><div class="kpi-val">${cust26Needed} / ${cust27Needed}</div>
-      <div class="kpi-sub">By end of 2026 / 2027</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Customers at Dec 2026</div><div class="kpi-val">${dec26?.cumCust||p.sc}</div>
-      <div class="kpi-sub">Target: ${cust26Needed} &mdash; ${dec26&&dec26.cumCust>=cust26Needed?'On track':'Need '+(cust26Needed-(dec26?.cumCust||p.sc))+' more'}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">MRR at Dec 2027</div><div class="kpi-val">${fmtMoney(dec27?.mrr||0,true)}</div>
-      <div class="kpi-sub">${dec27?.drafters||0} drafters × ${fmtMoney(p.dpm,true)}/mo</div>
+  const{rows,custNeeded,p}=data;
+  const years=[2026,2027,2028,2029,2030];
+  let html='';
+  years.forEach(y=>{
+    const tgt=arrTarget(p,y);
+    if(!tgt)return;
+    const dr=rows.find(r=>r.y===y&&r.m===12);
+    const arr=dr?.arr||0;
+    const hit=arr>=tgt;
+    const pct=Math.min(100,(arr/tgt)*100);
+    const need=custNeeded[y]||0;
+    html+=`<div class="kpi ${hit?'ok':'warn'}">
+      <div class="kpi-label">${y} ARR target</div>
+      <div class="kpi-val">${fmtMoney(arr,true)}</div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${pct.toFixed(0)}%;background:${hit?'#2ECC71':'#fbbf24'}"></div></div>
+      <div class="kpi-sub">${pct.toFixed(0)}% of ${fmtMoney(tgt,true)} · ${need} custs needed</div>
     </div>`;
+  });
+  document.getElementById('kpis').innerHTML=html;
 }
 
 function renderAlerts(data){
-  const{rows,cust26Needed,cust27Needed,p}=data;
-  const dec26=rows.find(r=>r.y===2026&&r.m===12);
-  const dec27=rows.find(r=>r.y===2027&&r.m===12);
+  const{rows,custNeeded,p}=data;
   const a=[];
-  if(dec26&&dec26.cumCust>=cust26Needed)
-    a.push({t:'ok',msg:`✓ 2026: ${dec26.cumCust} customers / ${dec26.drafters} drafters → ${fmtMoney(dec26.arr)} ARR, exceeds ${fmtMoney(p.arr26)} by ${fmtMoney(dec26.arr-p.arr26)}.`});
-  else
-    a.push({t:'warn',msg:`⚠ 2026 gap: ${dec26?.cumCust||p.sc} customers → ${fmtMoney(dec26?.arr||0)} ARR. Need ${cust26Needed-(dec26?.cumCust||p.sc)} more to hit ${fmtMoney(p.arr26)}.`});
-  if(dec27&&dec27.cumCust>=cust27Needed)
-    a.push({t:'ok',msg:`✓ 2027: ${dec27.cumCust} customers / ${dec27.drafters} drafters → ${fmtMoney(dec27.arr)} ARR, exceeds ${fmtMoney(p.arr27)} by ${fmtMoney(dec27.arr-p.arr27)}.`});
-  else
-    a.push({t:'warn',msg:`⚠ 2027 gap: ${dec27?.cumCust||0} customers → ${fmtMoney(dec27?.arr||0)} ARR. Need ${cust27Needed-(dec27?.cumCust||0)} more to hit ${fmtMoney(p.arr27)}.`});
+  [2026,2027,2028,2029,2030].forEach(y=>{
+    const tgt=arrTarget(p,y);
+    if(!tgt)return;
+    const dr=rows.find(r=>r.y===y&&r.m===12);
+    const arr=dr?.arr||0;
+    const need=custNeeded[y]||0;
+    if(dr&&arr>=tgt)
+      a.push({t:'ok',msg:`✓ ${y}: ${dr.cumCust} customers / ${dr.drafters} drafters → ${fmtMoney(arr)} ARR, exceeds ${fmtMoney(tgt)} target by ${fmtMoney(arr-tgt)}.`});
+    else
+      a.push({t:'warn',msg:`⚠ ${y} gap: ${dr?.cumCust||p.sc} customers → ${fmtMoney(arr)} ARR. Need ${need-(dr?.cumCust||p.sc)} more customers to hit ${fmtMoney(tgt)}.`});
+  });
   document.getElementById('alerts').innerHTML=a.map(x=>`<div class="alert ${x.t}">${x.msg}</div>`).join('');
 }
 
@@ -908,29 +949,26 @@ function renderTable(data){
   document.getElementById('sched-body').innerHTML=rows.map((r,i)=>{
     const isEdit=editingIdx===i;
     const hit26=r.arr>=p.arr26,hit27=r.arr>=p.arr27;
-    const rowCls=r.isGoal27&&hit27?'r-goal27':r.isGoal26&&hit26?'r-goal26':(r.isGoal26||r.isGoal27)?'r-slow':'r-normal';
-    const status=r.isGoal27?(hit27?`<span class="badge b-teal">2027 ✓</span>`:`<span class="badge b-gray">2027 miss</span>`):
-                 r.isGoal26?(hit26?`<span class="badge b-green">2026 ✓</span>`:`<span class="badge b-gray">2026 miss</span>`):
-                 r.y===2026?`<span class="badge b-blue">2026 ramp</span>`:`<span class="badge b-purple">2027 ramp</span>`;
-    const g26cls=r.gap26>0?'neg':'pos',g27cls=r.gap27>0?'neg':'pos';
+    const yearColors={2026:'b-blue',2027:'b-purple',2028:'b-teal',2029:'b-orange',2030:'b-green'};
+    const rowCls=r.isYearEnd&&r.onTrack?'r-goal26':r.isYearEnd&&!r.onTrack?'r-slow':'r-normal';
+    const badge=r.isYearEnd?(r.onTrack?`<span class="badge b-green">${r.y} ✓</span>`:`<span class="badge b-gray">${r.y} miss</span>`):`<span class="badge ${yearColors[r.y]||'b-gray'}">${r.y}</span>`;
+    const gapCls=r.gapYear>0?'neg':'pos';
     if(isEdit)return`<tr class="${rowCls} editing">
       <td style="color:var(--text3)">${i+1}</td><td style="font-weight:500">${monthLabel(r.y,r.m)}</td>
       <td><input class="row-input" type="number" value="${r.newC}" min="0" onchange="updateMonth('${r.y}','${r.m}',+this.value)"></td>
       <td class="mono">${r.cumCust}</td><td class="mono">${r.drafters}</td>
       <td class="currency-cell">${fmtMoney(r.mrr)}</td><td class="currency-cell" style="font-weight:600">${fmtMoney(r.arr)}</td>
-      <td class="currency-cell">${fmtMoney(p.arr26)}</td><td class="currency-cell">${fmtMoney(p.arr27)}</td>
-      <td class="currency-cell ${g26cls}">${r.gap26>0?'-':'+'}${fmtMoney(Math.abs(r.gap26))}</td>
-      <td class="currency-cell ${g27cls}">${r.gap27>0?'-':'+'}${fmtMoney(Math.abs(r.gap27))}</td>
-      <td class="currency-cell">${fmtMoney(r.cumRev)}</td><td>${status}</td>
+      <td class="currency-cell">${r.isYearEnd?fmtMoney(r.yearTarget):'—'}</td>
+      <td class="currency-cell ${gapCls}">${r.isYearEnd?(r.gapYear>0?'-':'+')+fmtMoney(Math.abs(r.gapYear)):'—'}</td>
+      <td class="currency-cell">${fmtMoney(r.cumRev)}</td><td>${badge}</td>
       <td><button class="row-btn" onclick="clearEdit()">Done</button></td></tr>`;
     return`<tr class="${rowCls}" onclick="startEdit(${i})" style="cursor:pointer">
       <td style="color:var(--text3)">${i+1}</td><td style="font-weight:500">${monthLabel(r.y,r.m)}</td>
       <td class="mono">${r.newC||'—'}</td><td class="mono" style="font-weight:600">${r.cumCust}</td><td class="mono">${r.drafters}</td>
       <td class="currency-cell">${fmtMoney(r.mrr)}</td><td class="currency-cell" style="font-weight:700;color:var(--navy)">${fmtMoney(r.arr)}</td>
-      <td class="currency-cell" style="color:var(--text3)">${fmtMoney(p.arr26)}</td><td class="currency-cell" style="color:var(--text3)">${fmtMoney(p.arr27)}</td>
-      <td class="currency-cell ${g26cls}">${r.gap26>0?'▼':'▲ '}${fmtMoney(Math.abs(r.gap26),true)}</td>
-      <td class="currency-cell ${g27cls}">${r.gap27>0?'▼':'▲ '}${fmtMoney(Math.abs(r.gap27),true)}</td>
-      <td class="currency-cell">${fmtMoney(r.cumRev,true)}</td><td>${status}</td>
+      <td class="currency-cell" style="color:var(--text3)">${r.isYearEnd?fmtMoney(r.yearTarget,true):'—'}</td>
+      <td class="currency-cell ${gapCls}">${r.isYearEnd?((r.gapYear>0?'▼':'▲ ')+fmtMoney(Math.abs(r.gapYear),true)):'—'}</td>
+      <td class="currency-cell">${fmtMoney(r.cumRev,true)}</td><td>${badge}</td>
       <td><button class="row-btn" onclick="event.stopPropagation();startEdit(${i})">Edit</button></td></tr>`;
   }).join('');
 }
@@ -1022,11 +1060,26 @@ function escHtml(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replac
 // ══════════════════════════════════════
 // SLIDERS
 // ══════════════════════════════════════
+// Track which year pair is showing in the sliders
+let sliderYearA=2026,sliderYearB=2027;
+function setYearPair(yA,yB,btn){
+  sliderYearA=yA;sliderYearB=yB;
+  document.querySelectorAll('.year-pair-tab').forEach(b=>b.classList.remove('active-pair'));
+  if(btn)btn.classList.add('active-pair');
+  const hint=document.getElementById('slider-year-hint');
+  if(hint)hint.textContent=yB?`Showing ${yA} & ${yB} additions`:`Showing ${yA} additions`;
+  const bWrap=document.getElementById('slider-col-b-wrap');
+  if(bWrap)bWrap.style.display=yB?'':'none';
+  const data=calcSchedule();
+  renderSliders(data);
+}
 function renderSliders(data){
-  const{p,cust26Needed,cust27Needed}=data;
+  const{p,custNeeded}=data;
+  const yA=sliderYearA, yB=sliderYearB;
   const months26=[],months27=[];
   for(let m=p.startM;m<=12;m++)months26.push(m);
   for(let m=1;m<=12;m++)months27.push(m);
+  const getMonths=(y)=>y===2026?months26:Array.from({length:12},(_,i)=>i+1);
 
   const makeSlider=(y,m)=>{
     const v=getAdd(y,m);
@@ -1041,17 +1094,25 @@ function renderSliders(data){
     </div>`;
   };
 
-  document.getElementById('sliders-2026').innerHTML=months26.map(m=>makeSlider(2026,m)).join('');
-  document.getElementById('sliders-2027').innerHTML=months27.map(m=>makeSlider(2027,m)).join('');
+  // Update labels
+  const labelA=document.getElementById('slider-col-a-label');
+  const labelB=document.getElementById('slider-col-b-label');
+  if(labelA)labelA.textContent=`${yA} monthly additions`;
+  if(labelB)labelB.textContent=`${yB} monthly additions`;
+
+  const mA=getMonths(yA), mB=yB?getMonths(yB):[];
+  document.getElementById('sliders-a').innerHTML=mA.map(m=>makeSlider(yA,m)).join('');
+  if(yB)document.getElementById('sliders-b').innerHTML=mB.map(m=>makeSlider(yB,m)).join('');
 
   // ── Pace trackers ──
-  const total26=months26.reduce((s,m)=>s+getAdd(2026,m),0);
-  const total27=months27.reduce((s,m)=>s+getAdd(2027,m),0);
+  const totalA=mA.reduce((s,m)=>s+getAdd(yA,m),0);
+  const totalB=yB?mB.reduce((s,m)=>s+getAdd(yB,m),0):0;
 
-  // 2026: need (cust26Needed - p.sc) new customers from the program start
-  const need26=Math.max(0,cust26Needed-p.sc);
-  // 2027: need (cust27Needed - cust26Needed) additional
-  const need27=Math.max(0,cust27Needed-cust26Needed);
+  // Needed: for yA = (yA target - prev year end), for yB = (yB target - yA target)
+  const prevA = yA===2026 ? p.sc : (custNeeded[yA-1]||0);
+  const need26 = Math.max(0,(custNeeded[yA]||0)-prevA);
+  const need27 = yB ? Math.max(0,(custNeeded[yB]||0)-(custNeeded[yA]||0)) : 0;
+  const total26=totalA, total27=totalB;
 
   function renderTracker(elId, scheduled, needed, year){
     const el=document.getElementById(elId);
@@ -1086,8 +1147,8 @@ function renderSliders(data){
     </div>`;
   }
 
-  renderTracker('pace-tracker-2026', total26, need26, '2026');
-  renderTracker('pace-tracker-2027', total27, need27, '2027');
+  renderTracker('pace-tracker-a', total26, need26, String(yA));
+  if(yB)renderTracker('pace-tracker-b', total27, need27, String(yB));
 }
 
 function syncNewCustomerDefaults(){
@@ -1097,23 +1158,25 @@ function syncNewCustomerDefaults(){
 }
 
 function renderDerived(data){
-  const{arrPerCustDefault,revenuePerCustDefault,cust26Needed,cust27Needed,p}=data;
-  document.getElementById('derived-box').innerHTML=`
-    <span>Revenue/drafter/month: <strong>${fmtMoney(p.dpm)}</strong></span>
-    <span>Revenue/customer/month (default): <strong>${fmtMoney(revenuePerCustDefault)}</strong></span>
-    <span>Revenue/customer/year (default): <strong>${fmtMoney(arrPerCustDefault)}</strong></span>
-    <span>Customers for ${fmtMoney(p.arr26,true)} ARR: <strong>${cust26Needed}</strong></span>
-    <span>Customers for ${fmtMoney(p.arr27,true)} ARR: <strong>${cust27Needed}</strong></span>
-    <span>Drafters at 2026 target: <strong>${cust26Needed*p.dpc}</strong></span>
-    <span>Drafters at 2027 target: <strong>${cust27Needed*p.dpc}</strong></span>`;
+  const{arrPerCustDefault,revenuePerCustDefault,custNeeded,p}=data;
+  const derivedItems=[
+    `Revenue/drafter/month: <strong>${fmtMoney(p.dpm)}</strong>`,
+    `Revenue/customer/month: <strong>${fmtMoney(revenuePerCustDefault)}</strong>`,
+    `Revenue/customer/year: <strong>${fmtMoney(arrPerCustDefault)}</strong>`,
+  ];
+  [2026,2027,2028,2029,2030].forEach(y=>{
+    const t=arrTarget(p,y);
+    if(t)derivedItems.push(`Customers for ${y}: <strong>${custNeeded[y]||0}</strong>`);
+  });
+  document.getElementById('derived-box').innerHTML=derivedItems.map(s=>`<span>${s}</span>`).join('');
 }
 
 function renderCharts(data){
   const{rows,p}=data;
-  const labels=rows.map(r=>monthLabel(r.y,r.m));
+  const labels=rows.map(r=>r.m===1||r.m===p.startM?monthLabel(r.y,r.m):(r.m===7?`Jul '${String(r.y).slice(2)}`:String(r.m)));
   const arrVals=rows.map(r=>r.arr),mrrVals=rows.map(r=>r.mrr);
   const custVals=rows.map(r=>r.cumCust),draftVals=rows.map(r=>r.drafters);
-  const line26=rows.map(()=>p.arr26),line27=rows.map(()=>p.arr27);
+  // target lines are inlined per dataset now
   const base={responsive:true,maintainAspectRatio:false,
     plugins:{legend:{labels:{font:{family:'DM Sans',size:11},boxWidth:10}},tooltip:{callbacks:{label:ctx=>' '+fmtMoney(ctx.raw)}}},
     scales:{x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10},maxTicksLimit:12}},
@@ -1121,11 +1184,11 @@ function renderCharts(data){
   const mk=(id,cfg)=>{if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);};
   mk('chart-arr',{type:'line',data:{labels,datasets:[
     {label:'ARR',data:arrVals,borderColor:'#F95411',backgroundColor:'rgba(249,84,17,.08)',fill:true,tension:.4,pointRadius:3,borderWidth:2},
-    {label:'2026 target',data:line26,borderColor:'#2ECC71',borderDash:[6,3],borderWidth:1.5,pointRadius:0},
-    {label:'2027 target',data:line27,borderColor:'#333345',borderDash:[6,3],borderWidth:1.5,pointRadius:0},
+    {label:'2026 target',data:rows.map(()=>p.arr26),borderColor:'#2ECC71',borderDash:[5,4],borderWidth:1.2,pointRadius:0,fill:false},
+    {label:'2027 target',data:rows.map(()=>p.arr27),borderColor:'#333345',borderDash:[6,3],borderWidth:1.5,pointRadius:0},
   ]},options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtMoney(ctx.raw)}`}}}}});
   mk('chart-mrr',{type:'bar',data:{labels,datasets:[
-    {label:'MRR',data:mrrVals,backgroundColor:rows.map(r=>r.y===2026?'rgba(249,84,17,.75)':'rgba(51,51,69,.65)'),borderRadius:4}
+    {label:'MRR',data:mrrVals,backgroundColor:rows.map(r=>r.y===2026?'rgba(249,84,17,.85)':r.y===2027?'rgba(51,51,69,.75)':r.y===2028?'rgba(249,84,17,.55)':r.y===2029?'rgba(51,51,69,.50)':'rgba(46,204,113,.70)'),borderRadius:4}
   ]},options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>` MRR: ${fmtMoney(ctx.raw)}`}}}}});
   const bc={...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw}`}}},
     scales:{x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10},maxTicksLimit:12}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{family:'DM Mono',size:10}}}}};
@@ -1160,6 +1223,423 @@ function exportCSV(){
   goLiveList.forEach((gl,i)=>{const idx=p.sc+i;const c=getCust(idx);custRows.push([p.sc+i+1,c.name||`Customer ${p.sc+i+1}`,'New',monthLabel(gl.y,gl.m),c.drafters,Math.round(c.drafters*p.dpm)].join(','));});
   const blob=new Blob([csvRows.join('\n')+'\n\nCUSTOMER ROSTER\n'+custRows.join('\n')],{type:'text/csv'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='arr-ramp-plan.csv';a.click();
+}
+
+// ══════════════════════════════════════
+// PDF EXPORT
+// ══════════════════════════════════════
+async function exportPDF() {
+  const btn = document.getElementById('pdf-btn');
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const data = calcSchedule();
+    const p = data.p;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    const PW = 297, PH = 210; // A4 landscape mm
+    const ORANGE = [249, 84, 17];
+    const DARK   = [51, 51, 69];
+    const WHITE  = [255, 255, 255];
+    const LGRAY  = [245, 245, 247];
+    const MGRAY  = [200, 200, 205];
+    const GREEN  = [22, 101, 52];
+    const GREEN_BG = [220, 252, 231];
+    const AMBER  = [146, 64, 14];
+    const AMBER_BG = [254, 243, 199];
+    const RED    = [153, 27, 27];
+    const RED_BG = [254, 226, 226];
+
+    const today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+    // ── helpers ──
+    function setFont(size, style='normal', color=DARK) {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', style);
+      doc.setTextColor(...color);
+    }
+    function fillRect(x, y, w, h, color) {
+      doc.setFillColor(...color);
+      doc.rect(x, y, w, h, 'F');
+    }
+    function drawLine(x1, y1, x2, y2, color=MGRAY, lw=0.3) {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(lw);
+      doc.line(x1, y1, x2, y2);
+    }
+    function fmtM(n) {
+      if (Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(2) + 'M';
+      if (Math.abs(n) >= 1e3) return '$' + Math.round(n/1e3) + 'K';
+      return '$' + Math.round(n);
+    }
+    function fmtFull(n) { return '$' + Math.round(n).toLocaleString(); }
+
+    // ── header bar (shared across all pages) ──
+    function drawHeader(title) {
+      fillRect(0, 0, PW, 14, DARK);
+      fillRect(0, 14, PW, 1.5, ORANGE);
+      // Logo text (fallback — no image embed needed for PDF)
+      setFont(9, 'bold', ORANGE);
+      doc.text('INNERGY®', 10, 9.5);
+      setFont(7, 'normal', [148, 174, 200]);
+      doc.text('innergy.com', 10, 12.5);
+      setFont(10, 'bold', WHITE);
+      doc.text(title, PW/2, 9.5, {align:'center'});
+      setFont(7, 'normal', [148, 174, 200]);
+      doc.text(`ARR Ramp-Up Planner  ·  Generated ${today}`, PW - 10, 9.5, {align:'right'});
+    }
+
+    // ── footer bar ──
+    function drawFooter(pageNum, total) {
+      fillRect(0, PH - 8, PW, 8, DARK);
+      setFont(7, 'normal', [148, 174, 200]);
+      doc.text('INNERGY® · innergy.com · Confidential', 10, PH - 3.5);
+      doc.text(`Page ${pageNum} of ${total}`, PW - 10, PH - 3.5, {align:'right'});
+    }
+
+    // ── KPI card ──
+    function drawKPICard(x, y, w, h, label, value, sub, status) {
+      const bgMap = {ok:GREEN_BG, warn:AMBER_BG, err:RED_BG, info:[239, 235, 254]};
+      const borderMap = {ok:[134, 239, 172], warn:[252, 211, 77], err:[252, 165, 165], info:[196, 181, 253]};
+      const valMap = {ok:GREEN, warn:AMBER, err:RED, info:[91, 33, 182]};
+      fillRect(x, y, w, h, bgMap[status]||LGRAY);
+      doc.setDrawColor(...(borderMap[status]||MGRAY));
+      doc.setLineWidth(0.4);
+      doc.rect(x, y, w, h);
+      setFont(7, 'normal', [107, 107, 126]);
+      doc.text(label, x+3, y+5);
+      setFont(13, 'bold', valMap[status]||DARK);
+      doc.text(value, x+3, y+12.5);
+      setFont(6.5, 'normal', [107, 107, 126]);
+      doc.text(sub, x+3, y+17, {maxWidth: w-6});
+    }
+
+    // ── section heading ──
+    function sectionHead(x, y, text) {
+      setFont(9, 'bold', ORANGE);
+      doc.text(text.toUpperCase(), x, y);
+      drawLine(x, y+1.5, x+40, y+1.5, ORANGE, 0.5);
+    }
+
+    const TOTAL_PAGES = 4;
+
+    // ══════════════════════
+    // PAGE 1 — EXECUTIVE SUMMARY
+    // ══════════════════════
+    drawHeader('Executive Summary');
+
+    const dec26 = data.rows.find(r=>r.y===2026&&r.m===12);
+    const dec27 = data.rows.find(r=>r.y===2027&&r.m===12);
+    const arr26 = dec26?.arr||0, arr27 = dec27?.arr||0;
+    const hit26 = arr26 >= p.arr26, hit27 = arr27 >= p.arr27;
+
+    // KPI row
+    const kpiY = 20, kpiH = 22, kpiW = 54, kpiGap = 4;
+    const kpis = [
+      {label:'2026 ARR (Dec run rate)', value:fmtM(arr26), sub:`${((arr26/p.arr26)*100).toFixed(0)}% of ${fmtM(p.arr26)} target`, status:hit26?'ok':'warn'},
+      {label:'2027 ARR (Dec run rate)', value:fmtM(arr27), sub:`${((arr27/p.arr27)*100).toFixed(0)}% of ${fmtM(p.arr27)} target`, status:hit27?'ok':'warn'},
+      {label:'Customers needed (2026→2030)', value:`${data.custNeeded[2026]||0} / ${data.custNeeded[2030]||0}`, sub:`At $${p.dpm.toLocaleString()}/drafter/mo × ${p.dpc} drafters`, status:'info'},
+      {label:'Drafters at 2030 target', value:`${(data.custNeeded[2030]||0)*p.dpc}`, sub:`${data.custNeeded[2030]||0} customers × ${p.dpc} default drafters`, status:'info'},
+      {label:'MRR at Dec 2027', value:fmtM(dec27?.mrr||0), sub:`${dec27?.drafters||0} drafters × ${fmtM(p.dpm)}/mo`, status:hit27?'ok':'warn'},
+    ];
+    kpis.forEach((k,i)=>drawKPICard(10 + i*(kpiW+kpiGap), kpiY, kpiW, kpiH, k.label, k.value, k.sub, k.status));
+
+    // Status alerts
+    let ay = 48;
+    const alerts = [];
+    if(hit26) alerts.push({t:'ok', msg:`2026 goal achieved: ${dec26?.cumCust} customers / ${dec26?.drafters} drafters → ${fmtFull(arr26)} ARR — exceeds ${fmtFull(p.arr26)} target by ${fmtFull(arr26-p.arr26)}`});
+    else alerts.push({t:'warn', msg:`2026 gap: ${dec26?.cumCust||p.sc} customers → ${fmtFull(arr26)} ARR. Need ${(data.custNeeded[2026]||0)-(dec26?.cumCust||p.sc)} more customers to hit ${fmtFull(p.arr26)} target`});
+    if(hit27) alerts.push({t:'ok', msg:`2027 goal achieved: ${dec27?.cumCust} customers / ${dec27?.drafters} drafters → ${fmtFull(arr27)} ARR — exceeds ${fmtFull(p.arr27)} target by ${fmtFull(arr27-p.arr27)}`});
+    else alerts.push({t:'warn', msg:`2027 gap: ${dec27?.cumCust||0} customers → ${fmtFull(arr27)} ARR. Need ${(data.custNeeded[2027]||0)-(dec27?.cumCust||0)} more customers to hit ${fmtFull(p.arr27)} target`});
+
+    alerts.forEach(a => {
+      const bg = a.t==='ok' ? GREEN_BG : AMBER_BG;
+      const border = a.t==='ok' ? [134,239,172] : [252,211,77];
+      const tc = a.t==='ok' ? GREEN : AMBER;
+      fillRect(10, ay, PW-20, 8, bg);
+      doc.setDrawColor(...border); doc.setLineWidth(0.3); doc.rect(10, ay, PW-20, 8);
+      doc.setFillColor(...(a.t==='ok' ? GREEN : AMBER));
+      doc.rect(10, ay, 1.5, 8, 'F');
+      setFont(7.5, 'normal', tc);
+      doc.text((a.t==='ok' ? '✓  ' : '⚠  ') + a.msg, 14, ay+5, {maxWidth: PW-28});
+      ay += 10;
+    });
+
+    // Revenue model summary box
+    ay += 2;
+    sectionHead(10, ay, 'Revenue model');
+    ay += 6;
+    fillRect(10, ay, PW-20, 16, LGRAY);
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.3); doc.rect(10, ay, PW-20, 16);
+    const modelItems = [
+      `Price per drafter/month: ${fmtFull(p.dpm)}`,
+      `Default drafters per customer: ${p.dpc}`,
+      `Revenue per customer/month: ${fmtFull(p.dpm*p.dpc)}`,
+      `Revenue per customer/year: ${fmtFull(p.dpm*p.dpc*12)}`,
+      `Starting customers: ${p.sc}`,
+      `Program start: ${monthLabel(2026,p.startM)}`,
+    ];
+    modelItems.forEach((item, i) => {
+      const col = i % 3, row = Math.floor(i/3);
+      const colW = (PW-20)/3;
+      setFont(7.5, 'normal', DARK);
+      doc.text('• ' + item, 14 + col*colW, ay + 5 + row*6);
+    });
+
+    drawFooter(1, TOTAL_PAGES);
+
+    // ══════════════════════
+    // PAGE 2 — MONTHLY SCHEDULE TABLE
+    // ══════════════════════
+    doc.addPage();
+    drawHeader('Monthly Revenue Schedule');
+
+    // Table setup
+    const cols = [
+      {h:'Month',      w:22, align:'left'},
+      {h:'New Custs',  w:18, align:'center'},
+      {h:'Cumul Custs',w:20, align:'center'},
+      {h:'Drafters',   w:18, align:'center'},
+      {h:'MRR',        w:26, align:'right'},
+      {h:'ARR',        w:28, align:'right'},
+      {h:'2026 Target',w:26, align:'right'},
+      {h:'2027 Target',w:26, align:'right'},
+      {h:'Gap 2026',   w:26, align:'right'},
+      {h:'Gap 2027',   w:26, align:'right'},
+      {h:'Cumul Rev',  w:28, align:'right'},
+    ];
+    const totalColW = cols.reduce((s,c)=>s+c.w,0);
+    const tableX = (PW - totalColW) / 2;
+    const rowH = 6.5;
+    let ty = 20;
+
+    // Header row
+    fillRect(tableX, ty, totalColW, 8, ORANGE);
+    let cx = tableX;
+    cols.forEach(col => {
+      setFont(6.5, 'bold', WHITE);
+      doc.text(col.h, col.align==='right' ? cx+col.w-2 : col.align==='center' ? cx+col.w/2 : cx+2, ty+5.5, {align: col.align==='center'?'center':col.align==='right'?'right':'left'});
+      cx += col.w;
+    });
+    ty += 8;
+
+    // Data rows
+    let prevY = null;
+    data.rows.forEach((row, ri) => {
+      // Year separator
+      if (row.y !== prevY) {
+        fillRect(tableX, ty, totalColW, 5, DARK);
+        setFont(7, 'bold', WHITE);
+        doc.text(`${row.y} RAMP`, tableX + 4, ty + 3.5);
+        ty += 5;
+        prevY = row.y;
+      }
+      // Page break check
+      if (ty + rowH > PH - 14) {
+        drawFooter(2, TOTAL_PAGES);
+        doc.addPage();
+        drawHeader('Monthly Revenue Schedule (continued)');
+        ty = 20;
+        // Re-draw column headers
+        fillRect(tableX, ty, totalColW, 8, ORANGE);
+        let cx2 = tableX;
+        cols.forEach(col => {
+          setFont(6.5, 'bold', WHITE);
+          doc.text(col.h, col.align==='right' ? cx2+col.w-2 : col.align==='center' ? cx2+col.w/2 : cx2+2, ty+5.5, {align: col.align==='center'?'center':col.align==='right'?'right':'left'});
+          cx2 += col.w;
+        });
+        ty += 8;
+      }
+
+      const bg = row.isYearEnd&&row.onTrack ? [220,252,231] :
+                 ri%2===0 ? WHITE : LGRAY;
+      fillRect(tableX, ty, totalColW, rowH, bg);
+      drawLine(tableX, ty+rowH, tableX+totalColW, ty+rowH, MGRAY, 0.2);
+
+      const vals = [
+        monthLabel(row.y,row.m),
+        row.newC||'—',
+        row.cumCust,
+        row.drafters,
+        fmtM(row.mrr),
+        fmtM(row.arr),
+        fmtM(p.arr26),
+        fmtM(p.arr27),
+        (row.gap26>0?'-':'+') + fmtM(Math.abs(row.gap26)),
+        (row.gap27>0?'-':'+') + fmtM(Math.abs(row.gap27)),
+        fmtM(row.cumRev),
+      ];
+      let vx = tableX;
+      vals.forEach((v, vi) => {
+        const col = cols[vi];
+        let color = DARK;
+        if (vi===8) color = row.gap26>0 ? RED : GREEN;
+        if (vi===9) color = row.gap27>0 ? RED : GREEN;
+        if (vi===5 && row.isYearEnd) color = DARK;
+        setFont(6.5, vi===0?'bold':'normal', color);
+        doc.text(String(v), col.align==='right' ? vx+col.w-2 : col.align==='center' ? vx+col.w/2 : vx+2, ty+4.5, {align: col.align==='center'?'center':col.align==='right'?'right':'left'});
+        vx += col.w;
+      });
+      ty += rowH;
+    });
+
+    drawFooter(2, TOTAL_PAGES);
+
+    // ══════════════════════
+    // PAGE 3 — CUSTOMER ROSTER
+    // ══════════════════════
+    doc.addPage();
+    drawHeader('Customer Roster');
+
+    const custCols = [
+      {h:'#',           w:12, align:'center'},
+      {h:'Company Name', w:62, align:'left'},
+      {h:'Status',       w:22, align:'center'},
+      {h:'Go-Live',      w:28, align:'center'},
+      {h:'Drafters',     w:22, align:'center'},
+      {h:'MRR/mo',       w:28, align:'right'},
+      {h:'ARR/yr',       w:30, align:'right'},
+    ];
+    const custTotalW = custCols.reduce((s,c)=>s+c.w,0);
+    const custX = (PW - custTotalW) / 2;
+    let cy = 20;
+
+    // Summary stats first
+    const goLiveList = data.goLiveList;
+    const totalCusts = p.sc + goLiveList.length;
+    let totalDrafters = 0, totalMRR = 0;
+    for (let i=0; i<totalCusts; i++) { const c=getCust(i); totalDrafters+=c.drafters; totalMRR+=c.drafters*p.dpm; }
+
+    const summaryItems = [
+      {l:'Total customers', v:String(totalCusts)},
+      {l:'Existing', v:String(p.sc)},
+      {l:'New to onboard', v:String(goLiveList.length)},
+      {l:'Total drafters', v:String(totalDrafters)},
+      {l:'Avg drafters/cust', v:(totalCusts>0?totalDrafters/totalCusts:0).toFixed(1)},
+      {l:'Full roster MRR', v:fmtM(totalMRR)},
+    ];
+    const sW = (custTotalW) / summaryItems.length;
+    summaryItems.forEach((s,i) => {
+      fillRect(custX + i*sW, cy, sW-1, 14, i%2===0 ? LGRAY : WHITE);
+      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2); doc.rect(custX+i*sW, cy, sW-1, 14);
+      setFont(6.5, 'normal', [107,107,126]);
+      doc.text(s.l, custX+i*sW+3, cy+5);
+      setFont(11, 'bold', DARK);
+      doc.text(s.v, custX+i*sW+3, cy+12);
+    });
+    cy += 18;
+
+    // Table header
+    fillRect(custX, cy, custTotalW, 7, ORANGE);
+    let hx = custX;
+    custCols.forEach(col => {
+      setFont(6.5, 'bold', WHITE);
+      doc.text(col.h, col.align==='right'?hx+col.w-2:col.align==='center'?hx+col.w/2:hx+2, cy+5, {align:col.align==='center'?'center':col.align==='right'?'right':'left'});
+      hx += col.w;
+    });
+    cy += 7;
+
+    // Existing
+    for (let i=0; i<p.sc; i++) {
+      if (cy + 6.5 > PH-14) {
+        drawFooter(3, TOTAL_PAGES);
+        doc.addPage();
+        drawHeader('Customer Roster (continued)');
+        cy = 20;
+      }
+      const c = getCust(i);
+      const mrr = c.drafters * p.dpm;
+      const bg = i%2===0 ? GREEN_BG : WHITE;
+      fillRect(custX, cy, custTotalW, 6.5, bg);
+      drawLine(custX, cy+6.5, custX+custTotalW, cy+6.5, MGRAY, 0.2);
+      const vals = [String(i+1), c.name||`Customer ${i+1}`, 'ACTIVE', 'Pre-program', String(c.drafters), fmtM(mrr), fmtM(mrr*12)];
+      let vx = custX;
+      vals.forEach((v,vi)=>{
+        const col = custCols[vi];
+        setFont(6.5, vi===1?'bold':'normal', vi===2?GREEN:DARK);
+        doc.text(v, col.align==='right'?vx+col.w-2:col.align==='center'?vx+col.w/2:vx+2, cy+4.5, {align:col.align==='center'?'center':col.align==='right'?'right':'left', maxWidth:col.w-3});
+        vx += col.w;
+      });
+      cy += 6.5;
+    }
+    // New
+    goLiveList.forEach((gl,i) => {
+      if (cy + 6.5 > PH-14) {
+        drawFooter(3, TOTAL_PAGES);
+        doc.addPage();
+        drawHeader('Customer Roster (continued)');
+        cy = 20;
+      }
+      const gi = p.sc+i;
+      const c = getCust(gi);
+      const mrr = c.drafters * p.dpm;
+      const bg = i%2===0 ? WHITE : LGRAY;
+      fillRect(custX, cy, custTotalW, 6.5, bg);
+      drawLine(custX, cy+6.5, custX+custTotalW, cy+6.5, MGRAY, 0.2);
+      const vals = [String(gi+1), c.name||`Customer ${gi+1}`, 'SCHEDULED', monthLabel(gl.y,gl.m), String(c.drafters), fmtM(mrr), fmtM(mrr*12)];
+      let vx = custX;
+      vals.forEach((v,vi)=>{
+        const col = custCols[vi];
+        const tc = vi===2 ? [37,99,168] : DARK;
+        setFont(6.5, vi===1?'bold':'normal', tc);
+        doc.text(v, col.align==='right'?vx+col.w-2:col.align==='center'?vx+col.w/2:vx+2, cy+4.5, {align:col.align==='center'?'center':col.align==='right'?'right':'left', maxWidth:col.w-3});
+        vx += col.w;
+      });
+      cy += 6.5;
+    });
+    drawFooter(3, TOTAL_PAGES);
+
+    // ══════════════════════
+    // PAGE 4 — ARR CHART (canvas capture)
+    // ══════════════════════
+    doc.addPage();
+    drawHeader('ARR & MRR Charts');
+
+    // Capture both chart canvases
+    const chartArr = document.getElementById('chart-arr');
+    const chartMrr = document.getElementById('chart-mrr');
+    const chartCust = document.getElementById('chart-cust');
+    const chartDraft = document.getElementById('chart-draft');
+
+    let imgY = 20;
+    const captureChart = async (canvas, x, y, w, h) => {
+      if (!canvas) return;
+      try {
+        const imgData = canvas.toDataURL('image/png');
+        // White background box
+        fillRect(x, y, w, h, WHITE);
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.3); doc.rect(x, y, w, h);
+        doc.addImage(imgData, 'PNG', x+1, y+1, w-2, h-2);
+      } catch(e) { console.warn('Chart capture failed', e); }
+    };
+
+    await captureChart(chartArr,   10,  20, 135, 80);
+    await captureChart(chartMrr,  152,  20, 135, 80);
+    await captureChart(chartCust,  10, 108, 135, 70);
+    await captureChart(chartDraft,152, 108, 135, 70);
+
+    // Chart labels
+    setFont(7.5, 'bold', [107,107,126]);
+    doc.text('ARR Ramp vs. Targets', 77, 18, {align:'center'});
+    doc.text('Monthly Recurring Revenue (MRR)', 219, 18, {align:'center'});
+    doc.text('Cumulative Customers', 77, 106, {align:'center'});
+    doc.text('Cumulative Drafters', 219, 106, {align:'center'});
+
+    drawFooter(4, TOTAL_PAGES);
+
+    // ── Save ──
+    const fname = `INNERGY-ARR-Ramp-Plan-${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(fname);
+
+  } catch(err) {
+    console.error('PDF export failed:', err);
+    alert('PDF export failed. Please try again or use Export CSV instead.');
+  } finally {
+    btn.textContent = 'Export PDF';
+    btn.disabled = false;
+  }
 }
 
 function rebuild(){
