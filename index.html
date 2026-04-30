@@ -473,7 +473,7 @@ function nextValidGoLive(fromFri){
 // ══════════════════════════════════════
 // PERSISTENCE — localStorage
 // ══════════════════════════════════════
-const STORAGE_KEY = 'innergy_rampup_v1';
+const STORAGE_KEY = 'innergy_rampup_v3';
 
 function saveToStorage() {
   try {
@@ -880,22 +880,15 @@ function autoFill(){
     2030:Math.ceil(p.arr30/arrPerCust),
   };
   let prevCum=p.sc;
-  // 2026: startM to Dec
-  const months26=12-p.startM+1;
-  const need26=Math.max(0,targets[2026]-prevCum);
-  const adds26=Array(months26).fill(0);
-  let left=need26;
-  for(let i=months26-1;i>=0&&left>0;i--){const a=Math.min(left,Math.ceil(need26/months26)+(i>=months26/2?1:0));adds26[i]=a;left-=a;}
-  for(let i=0;left>0;i=(i+1)%months26){adds26[i]++;left--;}
-  adds26.forEach((a,i)=>setAdd(2026,p.startM+i,a));
-  prevCum=targets[2026];
-  // 2027-2030: full 12 months each
+  // 2026: 2 new customers every month from startM to Dec
+  for(let m=p.startM;m<=12;m++){
+    setAdd(2026,m,2);
+  }
+  // 2027-2030: 3 per month, 4 in March (month 3)
   for(let y=2027;y<=2030;y++){
-    const need=Math.max(0,targets[y]-prevCum);
-    const adds=Array(12).fill(0);let rem=need;
-    for(let i=0;i<12&&rem>0;i++){const a=Math.min(rem,Math.ceil(need/12)+(i<need%12?1:0));adds[i]=a;rem-=a;}
-    adds.forEach((a,i)=>setAdd(y,i+1,a));
-    prevCum=targets[y];
+    for(let m=1;m<=12;m++){
+      setAdd(y,m, m===3 ? 4 : 3);
+    }
   }
   saveToStorage();
   rebuild();
