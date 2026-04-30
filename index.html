@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INNERGY® ARR Ramp-Up Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  /* INNERGY Brand */
+  --innergy-dark:#333345;
+  --innergy-orange:#F95411;
+  --innergy-orange-hover:#d94610;
+  --innergy-orange-pale:#FEF0EB;
+  --innergy-orange-border:#fbb89a;
+  /* App vars mapped to brand */
+  --navy:#333345;--navy2:#3d3d51;
+  --blue:#F95411;--blue-light:#d94610;--blue-pale:#FEF0EB;
+  --teal:#0d7a6b;--teal-light:#14a896;--teal-pale:#d0f5f0;
+  --bg:#F5F5F7;--surface:#ffffff;--surface2:#fafafa;
+  --border:#e0e0e4;--border2:#c8c8d0;
+  --text:#333345;--text2:#4a4a5a;--text3:#6b6b7e;
+  --green:#166534;--green-bg:#dcfce7;--green-border:#86efac;
+  --amber:#92400e;--amber-bg:#fef3c7;--amber-border:#fcd34d;
+  --red:#991b1b;--red-bg:#fee2e2;--red-border:#fca5a5;
+  --purple:#5b21b6;--purple-bg:#ede9fe;--purple-border:#c4b5fd;
+  --orange:#9a3412;--orange-bg:#fff7ed;--orange-border:#fdba74;
+  --r:8px;--rlg:14px;--sh-sm:0 1px 2px rgba(51,51,69,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.55;min-height:100vh}
+header{background:var(--innergy-dark);color:#fff;padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(51,51,69,.35);border-bottom:3px solid var(--innergy-orange)}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-dot{width:30px;height:30px;border-radius:7px;background:var(--innergy-orange);display:flex;align-items:center;justify-content:center;font-size:15px}
+.brand-title{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.brand-sub{font-size:11px;color:#94aec8;margin-top:1px}
+.hbtns{display:flex;gap:8px}
+.hbtn{padding:5px 13px;border-radius:var(--r);font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+.hbtn-ghost{border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff}.hbtn-ghost:hover{background:rgba(255,255,255,.1)}
+.hbtn-solid{border:none;background:var(--innergy-orange);color:#fff}.hbtn-solid:hover{background:var(--innergy-orange-hover)}
+.wrap{max-width:1480px;margin:0 auto;padding:1.5rem 2rem}
+.tabs{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:3px;width:fit-content;margin-bottom:1.25rem;box-shadow:var(--sh-sm);flex-wrap:wrap}
+.tab{padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.tab:hover{color:var(--text);background:var(--bg)}
+.tab.active{background:var(--innergy-dark);color:#fff}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:1.25rem;box-shadow:var(--sh-sm);margin-bottom:1rem}
+.card-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1rem}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:1rem 1.1rem;box-shadow:var(--sh-sm)}
+.kpi-label{font-size:11px;color:var(--text3);font-weight:500;margin-bottom:5px}
+.kpi-val{font-size:24px;font-weight:600;font-family:'DM Mono',monospace;color:var(--navy);line-height:1}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:5px}
+.kpi.ok{border-color:var(--green-border);background:var(--green-bg)}.kpi.ok .kpi-val{color:var(--green)}
+.kpi.warn{border-color:var(--amber-border);background:var(--amber-bg)}.kpi.warn .kpi-val{color:var(--amber)}
+.kpi.err{border-color:var(--red-border);background:var(--red-bg)}.kpi.err .kpi-val{color:var(--red)}
+.kpi.info{border-color:var(--innergy-orange-border);background:var(--innergy-orange-pale)}.kpi.info .kpi-val{color:var(--innergy-orange)}
+.alert{padding:9px 14px;border-radius:var(--r);font-size:13px;margin-bottom:8px;border:1px solid;display:flex;align-items:flex-start;gap:8px}
+.alert.ok{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.alert.warn{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+.params-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:500;color:var(--text2)}
+.field-hint{font-size:11px;color:var(--text3);margin-top:2px}
+.field input,.field select{height:36px;border:1px solid var(--border2);border-radius:var(--r);padding:0 10px;font-size:13px;color:var(--text);background:var(--surface2);font-family:'DM Sans',sans-serif;transition:border-color .15s,box-shadow .15s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--innergy-orange);box-shadow:0 0 0 3px rgba(249,84,17,.12)}
+.field input.currency{font-family:'DM Mono',monospace}
+.derived-box{background:var(--innergy-orange-pale);border:1px solid var(--innergy-orange-border);border-radius:var(--r);padding:.75rem 1rem;font-size:13px;color:var(--innergy-dark);display:flex;gap:2rem;flex-wrap:wrap}
+.derived-item strong{font-weight:600;font-family:'DM Mono',monospace;color:var(--innergy-orange)}
+.tbl-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 200px);border:1px solid var(--border);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead{background:var(--innergy-orange);position:sticky;top:0;z-index:10}
+th{padding:9px 10px;text-align:left;font-weight:500;font-size:11px;letter-spacing:.03em;white-space:nowrap;color:#fff}
+td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(249,84,17,.03)}
+.mono{font-family:'DM Mono',monospace}
+.currency-cell{font-family:'DM Mono',monospace;font-size:12px}
+.pos{color:var(--green);font-weight:600}
+.neg{color:var(--red);font-weight:600}
+tr.r-goal26 td{background:#dcfce7}
+tr.r-goal27 td{background:#fde8df}
+tr.r-slow td{background:#fef9f0}
+tr.r-normal td{background:var(--surface)}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.b-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.b-teal{background:var(--teal-pale);color:var(--teal);border:1px solid #5eead4}
+.b-purple{background:#f0f0f8;color:var(--innergy-dark);border:1px solid var(--border2)}
+.b-blue{background:var(--innergy-orange-pale);color:var(--innergy-orange);border:1px solid var(--innergy-orange-border)}
+.b-gray{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.b-orange{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.b-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:1.25rem;box-shadow:var(--sh-sm)}
+.chart-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem}
+.chart-inner{position:relative;height:180px}
+.two-col .chart-inner{height:160px}
+.scenario-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.scenario-row:last-child{border-bottom:none}
+.srow-num{width:26px;height:26px;border-radius:50%;background:var(--innergy-dark);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.srow-month{font-size:13px;font-weight:500;color:var(--text);min-width:70px}
+.srow-input{height:30px;width:70px;border:1px solid var(--border2);border-radius:6px;padding:0 6px;font-size:13px;font-family:'DM Mono',monospace;color:var(--text);background:var(--surface2)}
+.srow-input:focus{outline:none;border-color:var(--innergy-orange);box-shadow:0 0 0 2px rgba(249,84,17,.12)}
+.srow-info{font-size:11px;color:var(--text3);flex:1}
+.prog-wrap{background:var(--bg);border-radius:20px;height:8px;overflow:hidden;margin-top:4px}
+.prog-bar{height:100%;border-radius:20px;transition:width .4s ease}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.toolbar-left{display:flex;align-items:center;gap:8px}
+.tbtn{padding:5px 13px;border-radius:var(--r);font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.tbtn:hover{border-color:var(--innergy-orange);color:var(--innergy-orange);background:var(--innergy-orange-pale)}
+.hint{font-size:11px;color:var(--text3)}
+.row-input{height:26px;border:1px solid var(--border2);border-radius:5px;padding:0 6px;font-size:12px;font-family:'DM Mono',monospace;color:var(--text);background:#fff;width:70px}
+.row-input:focus{outline:none;border-color:var(--innergy-orange)}
+.row-btn{font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;color:var(--text2);cursor:pointer;font-family:'DM Sans',sans-serif}
+.row-btn:hover{background:var(--bg);border-color:var(--innergy-orange);color:var(--innergy-orange)}
+tr.editing td{background:var(--innergy-orange-pale)!important;outline:2px solid var(--innergy-orange);outline-offset:-1px}
+
+/* ── Customer roster ── */
+.cust-panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+.cust-section-hd{font-size:12px;font-weight:600;color:var(--text2);padding-bottom:8px;border-bottom:2px solid var(--innergy-orange);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.cust-section-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px}
+.existing-badge{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.new-badge{background:var(--blue-pale);color:var(--blue);border:1px solid #93c5fd}
+.cust-card{display:grid;grid-template-columns:28px 1fr 120px 70px 80px 28px;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface2);margin-bottom:6px;transition:border-color .15s}
+.cust-card:hover{border-color:var(--border2);box-shadow:var(--sh-sm)}
+.cust-card.has-custom{border-color:#93c5fd;background:var(--blue-pale)}
+.cust-card.is-existing{border-color:var(--green-border);background:var(--green-bg)}
+.cust-idx{width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;flex-shrink:0}
+.cust-idx.existing{background:var(--green)}
+.cust-idx.new-cust{background:var(--innergy-orange)}
+.cust-name-input{height:30px;border:1px solid var(--border2);border-radius:6px;padding:0 8px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);background:#fff;width:100%;transition:border-color .15s}
+.cust-name-input:focus{outline:none;border-color:var(--innergy-orange);box-shadow:0 0 0 2px rgba(249,84,17,.12)}
+.cust-name-input.named{border-color:var(--green-border);font-weight:500}
+.drafter-slider-wrap{display:flex;flex-direction:column;gap:3px}
+.drafter-slider-wrap input[type=range]{width:100%;height:4px;-webkit-appearance:none;appearance:none;border-radius:20px;background:var(--border2);cursor:pointer;outline:none}
+.drafter-slider-wrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--innergy-orange);border:2px solid #fff;box-shadow:0 1px 3px rgba(249,84,17,.3);cursor:pointer;transition:transform .1s}
+.drafter-slider-wrap input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.drafter-slider-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);font-family:'DM Mono',monospace}
+.drafter-spin{height:30px;width:52px;border:1px solid var(--border2);border-radius:6px;padding:0 4px;font-size:13px;font-family:'DM Mono',monospace;color:var(--text);background:#fff;text-align:center}
+.drafter-spin:focus{outline:none;border-color:var(--innergy-orange);box-shadow:0 0 0 2px rgba(249,84,17,.12)}
+.cust-mrr{font-size:11px;font-family:'DM Mono',monospace;font-weight:600;color:var(--innergy-orange);text-align:right;white-space:nowrap}
+.move-btn{width:24px;height:24px;border-radius:50%;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;font-weight:600;line-height:1}
+.move-btn:hover{background:var(--green);color:#fff;border-color:var(--green)}
+.move-btn[title]:hover::after{content:attr(title);position:absolute;background:var(--navy);color:#fff;font-size:10px;padding:3px 6px;border-radius:4px;white-space:nowrap;transform:translateX(-50%);margin-top:28px;z-index:50;pointer-events:none}
+/* ── Pace tracker ── */
+.pace-tracker{border:1px solid var(--border);border-radius:var(--r);padding:.875rem 1rem;margin-bottom:1rem;background:var(--surface2)}
+.pace-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:6px}
+.pace-title{font-size:12px;font-weight:600;color:var(--text2)}
+.pace-counts{display:flex;gap:1.25rem;flex-wrap:wrap}
+.pace-stat{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.pace-stat strong{font-family:'DM Mono',monospace;font-size:13px;font-weight:600}
+.pace-stat.ok strong{color:var(--green)}
+.pace-stat.warn strong{color:var(--amber)}
+.pace-stat.over strong{color:var(--innergy-orange)}
+.pace-bar-wrap{height:10px;background:var(--bg);border-radius:20px;overflow:hidden;position:relative;margin-bottom:4px}
+.pace-bar-fill{height:100%;border-radius:20px;transition:width .35s ease}
+.pace-bar-fill.ok{background:#2ECC71}
+.pace-bar-fill.warn{background:#fbbf24}
+.pace-bar-fill.over{background:var(--innergy-orange)}
+.pace-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px}
+.pace-status-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.pill-ok{background:#dcfce7;color:#166534;border:1px solid #86efac}
+.pill-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.pill-over{background:var(--innergy-orange-pale);color:var(--innergy-orange);border:1px solid var(--innergy-orange-border)}
+
+.roster-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;background:var(--innergy-dark);border-radius:var(--r);margin-top:1rem}
+.rs-item{text-align:center}
+.rs-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#94aec8;margin-bottom:3px}
+.rs-val{font-size:15px;font-weight:600;font-family:'DM Mono',monospace;color:#fff}
+
+/* ── 8-week plan ── */
+.week-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1rem}
+.week-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rlg);padding:1rem;box-shadow:var(--sh-sm);position:relative}
+.week-card.is-current{border-color:var(--innergy-orange);border-width:2px}
+.week-card.has-holiday-us{background:#fff8f0}
+.week-card.has-holiday-ph{background:#f0f8ff}
+.week-card.has-holiday-both{background:#fdf4ff}
+.week-card.is-skipped{opacity:.65}
+.week-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.75rem;gap:6px}
+.week-label{font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.02em}
+.week-date{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:1px}
+.week-now-pill{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;background:var(--innergy-orange);color:#fff;white-space:nowrap}
+.week-section{margin-bottom:.6rem}
+.week-section-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:4px}
+.week-task{font-size:11px;color:var(--text2);padding:4px 8px;border-radius:5px;margin-bottom:3px;display:flex;align-items:flex-start;gap:6px;line-height:1.4}
+.week-task.draft-task{background:var(--innergy-orange-pale);border-left:3px solid var(--innergy-orange)}
+.week-task.cust-task{background:var(--green-bg);border-left:3px solid var(--green)}
+.week-task.warn-task{background:var(--amber-bg);border-left:3px solid #f59e0b}
+.week-task.holiday-task{background:var(--red-bg);border-left:3px solid #ef4444}
+.week-task-icon{font-size:12px;flex-shrink:0;margin-top:1px}
+.week-task-body{flex:1}
+.week-task-name{font-weight:600;color:var(--navy)}
+.week-task-detail{font-size:10px;color:var(--text3);margin-top:1px}
+.week-empty{font-size:11px;color:var(--text3);font-style:italic;padding:6px 0}
+.holiday-banner{font-size:10px;padding:3px 7px;border-radius:4px;margin-bottom:6px;font-weight:600}
+.hb-us{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.hb-ph{background:#e0f0ff;color:#1e40af;border:1px solid #93c5fd}
+.hb-both{background:#f3e8fd;color:#5b21b6;border:1px solid #c4b5fd}
+.week-footer{border-top:1px solid var(--border);margin-top:.6rem;padding-top:.6rem;font-size:10px;color:var(--text3);font-family:'DM Mono',monospace}
+
+.plan-legend{display:flex;gap:12px;flex-wrap:wrap;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1rem;font-size:11px}
+.leg-item{display:flex;align-items:center;gap:5px;color:var(--text2)}
+.leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.week-nav{display:flex;align-items:center;gap:8px;margin-bottom:1rem}
+.week-nav-btn{padding:5px 12px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer}
+.week-nav-btn:hover{border-color:var(--blue);color:var(--blue)}
+.week-nav-label{font-size:12px;color:var(--text2);font-weight:500}
+
+footer{text-align:center;padding:1.5rem 2rem;font-size:11px;color:var(--text3);border-top:1px solid var(--border);margin-top:1rem}
+@media(max-width:1200px){.week-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.cust-panel-grid{grid-template-columns:1fr}}
+@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.params-grid{grid-template-columns:1fr 1fr}.chart-grid{grid-template-columns:1fr}.two-col{grid-template-columns:1fr}.week-grid{grid-template-columns:1fr 1fr}.wrap{padding:1rem}header{padding:0 1rem}}
+@media(max-width:600px){.week-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <img src="data:image/png;base64,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" alt="INNERGY" style="height:28px;display:block">
+    <div style="width:1px;height:28px;background:rgba(255,255,255,.18);flex-shrink:0"></div>
+    <div>
+      <div class="brand-title">ARR Ramp-Up Planner</div>
+      <div class="brand-sub">Architectural Millwork · SDaaS Growth Plan</div>
+    </div>
+  </div>
+  <div class="hbtns">
+    <button class="hbtn hbtn-ghost" onclick="exportCSV()">Export CSV</button>
+    <button class="hbtn hbtn-solid" onclick="rebuild()">Recalculate</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview',this)">Overview</button>
+    <button class="tab" onclick="showTab('monthly',this)">Monthly Schedule</button>
+    <button class="tab" onclick="showTab('customers',this)">Customer Roster</button>
+    <button class="tab" onclick="showTab('weekly',this)">8-Week Action Plan</button>
+    <button class="tab" onclick="showTab('settings',this)">Settings</button>
+  </div>
+
+  <!-- ══ OVERVIEW ══ -->
+  <div id="tab-overview">
+    <div class="kpi-grid" id="kpis"></div>
+    <div id="alerts"></div>
+    <div class="chart-grid">
+      <div class="chart-wrap"><div class="chart-title">ARR ramp vs. targets</div><div class="chart-inner"><canvas id="chart-arr"></canvas></div></div>
+      <div class="chart-wrap"><div class="chart-title">Monthly recurring revenue (MRR)</div><div class="chart-inner"><canvas id="chart-mrr"></canvas></div></div>
+    </div>
+    <div class="two-col">
+      <div class="chart-wrap"><div class="chart-title">Cumulative customers</div><div class="chart-inner"><canvas id="chart-cust"></canvas></div></div>
+      <div class="chart-wrap"><div class="chart-title">Cumulative drafters</div><div class="chart-inner"><canvas id="chart-draft"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ══ MONTHLY SCHEDULE ══ -->
+  <div id="tab-monthly" style="display:none">
+    <div class="card">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <div class="card-title" style="margin:0">Month-by-month ramp</div>
+          <span class="hint">Click a row to edit inline</span>
+        </div>
+        <button class="tbtn" onclick="clearEdit()">Done editing</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Month</th><th>New customers</th>
+            <th>Cumul. customers</th><th>Total drafters</th>
+            <th>MRR</th><th>ARR (run rate)</th>
+            <th>2026 ARR target</th><th>2027 ARR target</th>
+            <th>Gap to 2026</th><th>Gap to 2027</th>
+            <th>Cumul. revenue</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="sched-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CUSTOMER ROSTER ══ -->
+  <div id="tab-customers" style="display:none">
+    <div class="card">
+      <div class="card-title">Customer roster — name customers, set drafter count, move to active</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:1rem;line-height:1.6">
+        Drafters × $<span id="dpm-inline">4,500</span>/mo drives each customer's MRR.
+        Use the <strong style="color:var(--green)">✓ Move to existing</strong> button on any new customer to mark them as active — this shifts them to the left panel and immediately adds their revenue.
+      </p>
+      <div class="cust-panel-grid">
+        <div>
+          <div class="cust-section-hd">Existing customers <span class="cust-section-badge existing-badge" id="existing-count-badge">7 active</span></div>
+          <div style="display:grid;grid-template-columns:28px 1fr 120px 70px 80px 28px;gap:8px;padding:0 10px 6px;margin-bottom:4px">
+            <div></div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Company name</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:center">Drafters (1–10)</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:center">Count</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:right">MRR</div>
+            <div></div>
+          </div>
+          <div id="existing-customers"></div>
+        </div>
+        <div>
+          <div class="cust-section-hd">New customers to onboard <span class="cust-section-badge new-badge" id="new-count-badge">0 planned</span></div>
+          <div style="display:grid;grid-template-columns:28px 1fr 120px 70px 80px 28px;gap:8px;padding:0 10px 6px;margin-bottom:4px">
+            <div></div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Company name</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:center">Drafters (1–10)</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:center">Count</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:right">Go-live / MRR</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;text-align:center">Move</div>
+          </div>
+          <div id="new-customers"></div>
+        </div>
+      </div>
+      <div class="roster-summary" id="roster-summary"></div>
+    </div>
+  </div>
+
+  <!-- ══ 8-WEEK ACTION PLAN ══ -->
+  <div id="tab-weekly" style="display:none">
+    <div class="card" style="padding:.875rem 1.25rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="card-title" style="margin:0">8-week rolling action plan</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">Derived from monthly pace — respects US holidays (customer go-live) and Philippines holidays (drafter training). Drafters must be hired 1 week before customer go-live.</div>
+        </div>
+        <div class="week-nav">
+          <button class="week-nav-btn" onclick="shiftWeekOffset(-4)">← −4 wks</button>
+          <button class="week-nav-btn" onclick="shiftWeekOffset(-1)">← Prev</button>
+          <span class="week-nav-label" id="week-nav-label">Weeks 1–8</span>
+          <button class="week-nav-btn" onclick="shiftWeekOffset(1)">Next →</button>
+          <button class="week-nav-btn" onclick="shiftWeekOffset(4)">+4 wks →</button>
+          <button class="week-nav-btn" onclick="weekOffset=0;renderWeeklyPlan()">Today</button>
+        </div>
+      </div>
+    </div>
+    <div class="plan-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#eff6ff;border:2px solid var(--blue)"></div>Hire &amp; train drafters (PH team)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--green-bg);border:2px solid var(--green)"></div>Customer go-live (US milestone)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--amber-bg);border:2px solid #f59e0b"></div>Action needed this week</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--red-bg);border:2px solid #ef4444"></div>Holiday — activity shifted</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#fff8f0;border:2px solid var(--orange-border)"></div>US holiday week</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f0f8ff;border:2px solid #93c5fd"></div>PH holiday week</div>
+    </div>
+    <div class="week-grid" id="week-cards"></div>
+  </div>
+
+  <!-- ══ SETTINGS ══ -->
+  <div id="tab-settings" style="display:none">
+    <div class="card">
+      <div class="card-title">Revenue model</div>
+      <div class="params-grid" style="margin-bottom:1rem">
+        <div class="field"><label>Price per drafter per month ($)</label><input type="number" id="p-dpm" value="4500" min="0" step="100" class="currency" oninput="rebuild()"><div class="field-hint">Monthly billing rate per drafter</div></div>
+        <div class="field"><label>Default drafters per customer</label><input type="number" id="p-dpc" value="2" min="1" oninput="rebuild()"><div class="field-hint">Override per-customer in Customer Roster</div></div>
+        <div class="field"><label>Starting customers</label><input type="number" id="p-sc" value="7" min="0" max="50" oninput="syncCustomerCount();rebuild()"><div class="field-hint">Already-active at program start</div></div>
+      </div>
+      <div class="params-grid" style="margin-bottom:1rem">
+        <div class="field"><label>2026 ARR target ($)</label><input type="number" id="p-arr26" value="2000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
+        <div class="field"><label>2027 ARR target ($)</label><input type="number" id="p-arr27" value="6000000" min="0" step="50000" class="currency" oninput="rebuild()"></div>
+        <div class="field"><label>Program start month</label>
+          <select id="p-start" oninput="rebuild()">
+            <option value="3">Mar 2026</option>
+            <option value="4">Apr 2026</option>
+            <option value="5" selected>May 2026</option>
+            <option value="6">Jun 2026</option>
+            <option value="7">Jul 2026</option>
+          </select>
+        </div>
+      </div>
+      <div id="derived-box" class="derived-box"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Monthly onboarding pace</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem">2026 monthly additions</div>
+          <div id="pace-tracker-2026"></div>
+          <div id="sliders-2026"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:.75rem">2027 monthly additions</div>
+          <div id="pace-tracker-2027"></div>
+          <div id="sliders-2027"></div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;gap:8px">
+        <button class="tbtn" onclick="autoFill()">Auto-fill to hit targets</button>
+        <button class="tbtn" onclick="clearMonthly()">Reset to zero</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer style="display:flex;align-items:center;justify-content:center;gap:10px">
+  <img src="data:image/png;base64,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" alt="INNERGY" style="height:18px;opacity:.5">
+  <span>INNERGY® ARR Ramp-Up Planner &mdash; innergy.com &mdash; All data stays in your browser</span>
+</footer>
+
+<script>
+// ══════════════════════════════════════
+// HOLIDAY CALENDARS
+// ══════════════════════════════════════
+const US_HOL = {
+  "2026-05-25":"Memorial Day","2026-07-03":"Independence Day (obs.)","2026-09-07":"Labor Day",
+  "2026-10-12":"Columbus Day","2026-11-11":"Veterans Day","2026-11-26":"Thanksgiving",
+  "2026-11-27":"Day after Thanksgiving","2026-12-25":"Christmas Day",
+  "2027-01-01":"New Year's Day","2027-01-18":"MLK Day","2027-02-15":"Presidents Day",
+  "2027-05-31":"Memorial Day","2027-07-05":"Independence Day (obs.)","2027-09-06":"Labor Day",
+  "2027-11-25":"Thanksgiving","2027-11-26":"Day after Thanksgiving","2027-12-24":"Christmas Eve","2027-12-31":"New Year's Eve"
+};
+const PH_HOL = {
+  "2026-05-01":"Labor Day (PH)","2026-05-28":"Eidul Adha","2026-06-12":"Independence Day (PH)",
+  "2026-08-21":"Ninoy Aquino Day","2026-08-31":"National Heroes Day","2026-11-01":"All Saints Day",
+  "2026-11-02":"All Souls Day","2026-11-30":"Bonifacio Day","2026-12-08":"Immaculate Conception",
+  "2026-12-24":"Christmas Eve (PH)","2026-12-25":"Christmas Day (PH)","2026-12-30":"Rizal Day","2026-12-31":"New Year Eve (PH)",
+  "2027-01-01":"New Year's Day (PH)","2027-04-01":"Maundy Thursday","2027-04-02":"Good Friday",
+  "2027-05-01":"Labor Day (PH)","2027-06-12":"Independence Day (PH)","2027-08-30":"National Heroes Day",
+  "2027-11-01":"All Saints Day (PH)","2027-11-30":"Bonifacio Day (PH)","2027-12-25":"Christmas Day (PH)","2027-12-30":"Rizal Day (PH)"
+};
+
+function isoDate(d){return d.toISOString().slice(0,10)}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r}
+function nextFriday(d){const r=new Date(d);const dow=r.getDay();const diff=dow<=5?(5-dow):(12-dow);r.setDate(r.getDate()+diff);return r}
+
+function weekHolUS(fri){
+  const mon=addDays(fri,-4);
+  for(let i=0;i<5;i++){const k=isoDate(addDays(mon,i));if(US_HOL[k])return US_HOL[k];}
+  return null;
+}
+function weekHolPH(fri){
+  const mon=addDays(fri,-4);
+  for(let i=0;i<5;i++){const k=isoDate(addDays(mon,i));if(PH_HOL[k])return PH_HOL[k];}
+  return null;
+}
+// Find next valid go-live friday (no US holiday that week, and training week before has no PH holiday)
+function nextValidGoLive(fromFri){
+  let f=new Date(fromFri);
+  for(let tries=0;tries<20;tries++){
+    f=addDays(f,7);
+    const usHol=weekHolUS(f);
+    const trainFri=addDays(f,-7);
+    const phHol=weekHolPH(trainFri);
+    if(!usHol&&!phHol)return f;
+  }
+  return addDays(fromFri,7); // fallback
+}
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let monthlyAdds = {};
+let editingIdx = null;
+let charts = {};
+let customerData = {};   // idx => {name,drafters,isExisting}
+let manualExistingCount = null; // tracks how many have been moved to existing
+let weekOffset = 0;      // how many weeks from today to start the 8-week view
+
+function getP(){
+  return{
+    dpm:   +document.getElementById('p-dpm').value   ||4500,
+    dpc:   +document.getElementById('p-dpc').value   ||2,
+    sc:    +document.getElementById('p-sc').value    ||7,
+    arr26: +document.getElementById('p-arr26').value ||2000000,
+    arr27: +document.getElementById('p-arr27').value ||6000000,
+    startM:+document.getElementById('p-start').value ||5,
+  };
+}
+
+function fmtMoney(n,compact=false){
+  if(compact){
+    if(Math.abs(n)>=1e6)return'$'+(n/1e6).toFixed(2)+'M';
+    if(Math.abs(n)>=1e3)return'$'+Math.round(n/1e3)+'K';
+    return'$'+Math.round(n);
+  }
+  return'$'+Math.round(n).toLocaleString();
+}
+function monthKey(y,m){return`${y}-${m}`;}
+function monthLabel(y,m){return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1]+' '+y;}
+function allMonths(startM){
+  const out=[];
+  for(let m=startM;m<=12;m++)out.push({y:2026,m});
+  for(let m=1;m<=12;m++)out.push({y:2027,m});
+  return out;
+}
+function getAdd(y,m){return monthlyAdds[monthKey(y,m)]||0;}
+function setAdd(y,m,v){monthlyAdds[monthKey(y,m)]=Math.max(0,+v||0);}
+
+// Count how many are marked as existing (either original sc or moved over)
+function getEffectiveSC(){
+  const p=getP();
+  let count=p.sc;
+  // also count any that have been manually moved
+  for(const k in customerData){
+    const c=customerData[k];
+    if(c.movedToExisting)count++;
+  }
+  return count;
+}
+
+function getCust(idx){
+  const p=getP();
+  if(!customerData[idx])customerData[idx]={name:'',drafters:p.dpc,movedToExisting:false};
+  return customerData[idx];
+}
+function setCustName(idx,name){getCust(idx).name=name;}
+function setCustDrafters(idx,d){getCust(idx).drafters=Math.max(1,+d||1);rebuild();}
+function syncCustomerCount(){const p=getP();for(let i=0;i<p.sc;i++)getCust(i);}
+
+// Move a new customer to existing roster
+function moveToExisting(newIdx){
+  const p=getP();
+  const globalIdx=p.sc+newIdx;
+  const c=getCust(globalIdx);
+  c.movedToExisting=true;
+  // Increment the sc input by 1
+  const scEl=document.getElementById('p-sc');
+  scEl.value=+scEl.value+1;
+  // Shift remaining new customers down
+  const gl=buildGoLiveList(p);
+  // re-index: everything after newIdx shifts
+  for(let i=newIdx;i<gl.length-1;i++){
+    const fromIdx=p.sc+i+1;
+    const toIdx=p.sc+i;
+    customerData[toIdx]={...getCust(fromIdx)};
+  }
+  // Remove the last slot
+  delete customerData[p.sc+gl.length-1];
+  // Reduce one add from the appropriate month
+  const movedMonth=gl[newIdx];
+  if(movedMonth)setAdd(movedMonth.y,movedMonth.m,Math.max(0,getAdd(movedMonth.y,movedMonth.m)-1));
+  syncNewCustomerDefaults();
+  rebuild();
+}
+
+// ══════════════════════════════════════
+// CORE CALCULATION
+// ══════════════════════════════════════
+function buildGoLiveList(p){
+  const list=[];
+  for(const{y,m}of allMonths(p.startM)){
+    const n=getAdd(y,m);
+    for(let i=0;i<n;i++)list.push({y,m});
+  }
+  return list;
+}
+
+function calcSchedule(){
+  const p=getP();
+  const months=allMonths(p.startM);
+  const goLiveList=buildGoLiveList(p);
+  let baseDrafters=0;
+  for(let i=0;i<p.sc;i++){const c=getCust(i);baseDrafters+=c.drafters;}
+  let newCustIdx=0,runningDrafters=baseDrafters,cumRev=0,cumCust=p.sc;
+  const revenuePerCustDefault=p.dpm*p.dpc;
+  const arrPerCustDefault=revenuePerCustDefault*12;
+  const cust26Needed=Math.ceil(p.arr26/arrPerCustDefault);
+  const cust27Needed=Math.ceil(p.arr27/arrPerCustDefault);
+  const rows=[];
+  for(const{y,m}of months){
+    const newThisMonth=getAdd(y,m);
+    for(let i=0;i<newThisMonth;i++){
+      const globalIdx=p.sc+newCustIdx;
+      const c=getCust(globalIdx);
+      runningDrafters+=c.drafters;
+      newCustIdx++;
+    }
+    cumCust+=newThisMonth;
+    const mrr=runningDrafters*p.dpm;
+    const arr=mrr*12;
+    cumRev+=mrr;
+    rows.push({y,m,newC:newThisMonth,cumCust,drafters:runningDrafters,mrr,arr,cumRev,
+               gap26:p.arr26-arr,gap27:p.arr27-arr,
+               isGoal26:y===2026&&m===12,isGoal27:y===2027&&m===12});
+  }
+  return{rows,cust26Needed,cust27Needed,arrPerCustDefault,revenuePerCustDefault,p,goLiveList,baseDrafters};
+}
+
+// ══════════════════════════════════════
+// 8-WEEK PLAN ENGINE
+// Takes the monthly plan and expands into weekly Friday-level tasks
+// respecting US holidays (go-live) and PH holidays (drafter hiring)
+// ══════════════════════════════════════
+function buildWeeklyPlan(){
+  const p=getP();
+  const goLiveList=buildGoLiveList(p);
+  // Convert monthly go-lives to weekly go-live dates
+  // Each month's customers are spread across available Fridays in that month
+  // For each customer: training happens the week before go-live
+  // Go-live Friday must not be in a US holiday week
+  // Training Friday must not be in a PH holiday week
+
+  const today=new Date();
+  // Find the first Friday of the program
+  const startDate=new Date(2026,p.startM-1,1);
+  let programStart=nextFriday(startDate);
+
+  // Build a list of weekly events {fri, events:[]}
+  // events: {type: 'hire'|'golive'|'holiday', ...data}
+  const weekEvents={}; // isoDate(fri) => []
+  function addEvent(fri,ev){const k=isoDate(fri);if(!weekEvents[k])weekEvents[k]=[];weekEvents[k].push(ev);}
+
+  let custSeq=0; // tracks which customer we're assigning
+  let currentFri=new Date(programStart);
+
+  // For each new customer in go-live order, find their valid go-live Friday
+  // walking forward from program start
+  const custGoLiveDates=[];
+  let scanFri=new Date(programStart);
+
+  // isValid: go-live Friday has no US holiday, training Friday (go-live-7) has no PH holiday
+  const isValid=f=>{return !weekHolUS(f)&&!weekHolPH(addDays(f,-7));};
+
+  for(let ci=0;ci<goLiveList.length;ci++){
+    const gl=goLiveList[ci];
+    const monthStart=new Date(gl.y,gl.m-1,1);
+    const monthEnd=new Date(gl.y,gl.m,0);
+
+    // Start no earlier than: first Friday of the target month OR scanFri (whichever is later)
+    // scanFri is always set to found+7 after each assignment, guaranteeing max 1 go-live/week.
+    let candidateFri=nextFriday(new Date(Math.max(scanFri.getTime(),monthStart.getTime())-86400000));
+
+    let found=null;
+
+    // First pass: stay within the target month
+    for(let tries=0;tries<8;tries++){
+      if(candidateFri>monthEnd)break;
+      if(isValid(candidateFri)){found=new Date(candidateFri);break;}
+      candidateFri=addDays(candidateFri,7);
+    }
+
+    // Fallback: month was full or all holiday — walk forward past month end
+    if(!found){
+      if(candidateFri<=monthEnd)candidateFri=nextFriday(monthEnd);
+      for(let tries=0;tries<20;tries++){
+        if(isValid(candidateFri)){found=new Date(candidateFri);break;}
+        candidateFri=addDays(candidateFri,7);
+      }
+    }
+
+    if(found){
+      const globalIdx=p.sc+ci;
+      const c=getCust(globalIdx);
+      const custName=c.name||`Customer #${p.sc+ci+1}`;
+      const trainFri=addDays(found,-7);
+      addEvent(trainFri,{type:'hire',custName,drafters:c.drafters,goLiveFri:found,phHol:weekHolPH(trainFri)});
+      addEvent(found,{type:'golive',custName,drafters:c.drafters,usHol:weekHolUS(found)});
+      custGoLiveDates.push(found);
+      // Advance by a full week — next customer cannot land on the same Friday
+      scanFri=addDays(found,7);
+    }
+  }
+
+  return weekEvents;
+}
+
+let weeklyPlanData={};
+
+function shiftWeekOffset(delta){weekOffset+=delta;renderWeeklyPlan();}
+
+function renderWeeklyPlan(){
+  weeklyPlanData=buildWeeklyPlan();
+  const today=new Date();
+  // Start of the 8-week window: Monday of the current week + offset
+  const dayOfWeek=today.getDay();
+  const monday=addDays(today,-(dayOfWeek===0?6:dayOfWeek-1));
+  const windowStart=addDays(monday,weekOffset*7);
+
+  const cards=[];
+  for(let w=0;w<8;w++){
+    const weekMon=addDays(windowStart,w*7);
+    const weekFri=addDays(weekMon,4);
+    const isCurrent=w===0&&weekOffset===0;
+    const usHol=weekHolUS(weekFri);
+    const phHol=weekHolPH(weekFri);
+    const events=weeklyPlanData[isoDate(weekFri)]||[];
+    const hireEvents=events.filter(e=>e.type==='hire');
+    const goliveEvents=events.filter(e=>e.type==='golive');
+
+    // Format dates
+    const fmtD=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const weekRange=`${fmtD(weekMon)} – ${fmtD(weekFri)}`;
+    const weekNum=`Week ${w+1+weekOffset}`;
+
+    let holClass='';
+    let holBanner='';
+    if(usHol&&phHol){holClass='has-holiday-both';holBanner=`<div class="holiday-banner hb-both">🚫 US: ${usHol} | PH: ${phHol}</div>`;}
+    else if(usHol){holClass='has-holiday-us';holBanner=`<div class="holiday-banner hb-us">🇺🇸 US Holiday: ${usHol} — no customer go-lives</div>`;}
+    else if(phHol){holClass='has-holiday-ph';holBanner=`<div class="holiday-banner hb-ph">🇵🇭 PH Holiday: ${phHol} — no drafter hiring</div>`;}
+
+    let tasksHtml='';
+
+    // Hire tasks
+    if(hireEvents.length>0){
+      tasksHtml+=`<div class="week-section"><div class="week-section-label">Hire &amp; begin drafter training</div>`;
+      hireEvents.forEach(ev=>{
+        const goLiveStr=ev.goLiveFri?fmtD(ev.goLiveFri):'TBD';
+        tasksHtml+=`<div class="week-task draft-task">
+          <div class="week-task-icon">🏗</div>
+          <div class="week-task-body">
+            <div class="week-task-name">Hire ${ev.drafters} drafter${ev.drafters!==1?'s':''}</div>
+            <div class="week-task-detail">For ${ev.custName} · go-live ${goLiveStr}</div>
+          </div>
+        </div>`;
+      });
+      tasksHtml+=`</div>`;
+    }
+
+    // Go-live tasks
+    if(goliveEvents.length>0){
+      tasksHtml+=`<div class="week-section"><div class="week-section-label">Customer go-live</div>`;
+      goliveEvents.forEach(ev=>{
+        tasksHtml+=`<div class="week-task cust-task">
+          <div class="week-task-icon">✅</div>
+          <div class="week-task-body">
+            <div class="week-task-name">${ev.custName}</div>
+            <div class="week-task-detail">Onboard · ${ev.drafters} drafter${ev.drafters!==1?'s':''} assigned · ${fmtMoney(ev.drafters*(+document.getElementById('p-dpm').value||4500),true)}/mo</div>
+          </div>
+        </div>`;
+      });
+      tasksHtml+=`</div>`;
+    }
+
+    // Holiday notices
+    if(usHol&&goliveEvents.length===0&&hireEvents.length===0){
+      tasksHtml+=`<div class="week-task holiday-task"><div class="week-task-icon">🚫</div><div class="week-task-body"><div class="week-task-name">US Holiday week</div><div class="week-task-detail">No customer go-lives scheduled</div></div></div>`;
+    }
+    if(phHol&&goliveEvents.length===0&&hireEvents.length===0&&!usHol){
+      tasksHtml+=`<div class="week-task holiday-task"><div class="week-task-icon">🚫</div><div class="week-task-body"><div class="week-task-name">PH Holiday week</div><div class="week-task-detail">No drafter hiring scheduled</div></div></div>`;
+    }
+
+    if(!tasksHtml){
+      tasksHtml=`<div class="week-empty">No scheduled activities this week</div>`;
+    }
+
+    const newMRR=goliveEvents.reduce((s,ev)=>s+ev.drafters*(+document.getElementById('p-dpm').value||4500),0);
+    const footerHtml=newMRR>0?`<div class="week-footer">+${fmtMoney(newMRR,true)} new MRR this week</div>`:'';
+
+    cards.push(`
+      <div class="week-card ${holClass} ${isCurrent?'is-current':''}">
+        <div class="week-hd">
+          <div>
+            <div class="week-label">${weekNum}</div>
+            <div class="week-date">${weekRange}</div>
+          </div>
+          ${isCurrent?'<span class="week-now-pill">This week</span>':''}
+        </div>
+        ${holBanner}
+        ${tasksHtml}
+        ${footerHtml}
+      </div>`);
+  }
+
+  document.getElementById('week-cards').innerHTML=cards.join('');
+  const startLbl=cards.length?`Offset: ${weekOffset>=0?'+':''}${weekOffset} weeks from today`:'';
+  document.getElementById('week-nav-label').textContent=weekOffset===0?'Current 8 weeks':`${weekOffset>0?'Future':'Past'} (${Math.abs(weekOffset)} wk offset)`;
+}
+
+// ══════════════════════════════════════
+// AUTO-FILL
+// ══════════════════════════════════════
+function autoFill(){
+  const p=getP();
+  const arrPerCust=p.dpm*p.dpc*12;
+  const cust26=Math.ceil(p.arr26/arrPerCust);
+  const cust27=Math.ceil(p.arr27/arrPerCust);
+  const months26=12-p.startM+1;
+  const need26=Math.max(0,cust26-p.sc);
+  const adds26=Array(months26).fill(0);
+  let left=need26;
+  for(let i=months26-1;i>=0&&left>0;i--){const a=Math.min(left,Math.ceil(need26/months26)+(i>=months26/2?1:0));adds26[i]=a;left-=a;}
+  for(let i=0;left>0;i=(i+1)%months26){adds26[i]++;left--;}
+  adds26.forEach((a,i)=>setAdd(2026,p.startM+i,a));
+  const need27=Math.max(0,cust27-cust26);
+  const adds27=Array(12).fill(0);
+  let left27=need27;
+  for(let i=0;i<12&&left27>0;i++){const a=Math.min(left27,Math.ceil(need27/12)+(i<need27%12?1:0));adds27[i]=a;left27-=a;}
+  adds27.forEach((a,i)=>setAdd(2027,i+1,a));
+  rebuild();
+}
+function clearMonthly(){monthlyAdds={};rebuild();}
+
+// ══════════════════════════════════════
+// RENDER KPIs
+// ══════════════════════════════════════
+function renderKPIs(data){
+  const{rows,cust26Needed,cust27Needed,p}=data;
+  const dec26=rows.find(r=>r.y===2026&&r.m===12);
+  const dec27=rows.find(r=>r.y===2027&&r.m===12);
+  const arr26=dec26?.arr||0,arr27=dec27?.arr||0;
+  const hit26=arr26>=p.arr26,hit27=arr27>=p.arr27;
+  const pct26=Math.min(100,(arr26/p.arr26)*100),pct27=Math.min(100,(arr27/p.arr27)*100);
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi ${hit26?'ok':'warn'}">
+      <div class="kpi-label">2026 ARR (Dec run rate)</div><div class="kpi-val">${fmtMoney(arr26,true)}</div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${pct26}%;background:${hit26?'#4ade80':'#fbbf24'}"></div></div>
+      <div class="kpi-sub">${pct26.toFixed(0)}% of ${fmtMoney(p.arr26,true)} target</div>
+    </div>
+    <div class="kpi ${hit27?'ok':'warn'}">
+      <div class="kpi-label">2027 ARR (Dec run rate)</div><div class="kpi-val">${fmtMoney(arr27,true)}</div>
+      <div class="prog-wrap"><div class="prog-bar" style="width:${pct27}%;background:${hit27?'#4ade80':'#fbbf24'}"></div></div>
+      <div class="kpi-sub">${pct27.toFixed(0)}% of ${fmtMoney(p.arr27,true)} target</div>
+    </div>
+    <div class="kpi info">
+      <div class="kpi-label">Customers needed</div><div class="kpi-val">${cust26Needed} / ${cust27Needed}</div>
+      <div class="kpi-sub">By end of 2026 / 2027</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Customers at Dec 2026</div><div class="kpi-val">${dec26?.cumCust||p.sc}</div>
+      <div class="kpi-sub">Target: ${cust26Needed} &mdash; ${dec26&&dec26.cumCust>=cust26Needed?'On track':'Need '+(cust26Needed-(dec26?.cumCust||p.sc))+' more'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">MRR at Dec 2027</div><div class="kpi-val">${fmtMoney(dec27?.mrr||0,true)}</div>
+      <div class="kpi-sub">${dec27?.drafters||0} drafters × ${fmtMoney(p.dpm,true)}/mo</div>
+    </div>`;
+}
+
+function renderAlerts(data){
+  const{rows,cust26Needed,cust27Needed,p}=data;
+  const dec26=rows.find(r=>r.y===2026&&r.m===12);
+  const dec27=rows.find(r=>r.y===2027&&r.m===12);
+  const a=[];
+  if(dec26&&dec26.cumCust>=cust26Needed)
+    a.push({t:'ok',msg:`✓ 2026: ${dec26.cumCust} customers / ${dec26.drafters} drafters → ${fmtMoney(dec26.arr)} ARR, exceeds ${fmtMoney(p.arr26)} by ${fmtMoney(dec26.arr-p.arr26)}.`});
+  else
+    a.push({t:'warn',msg:`⚠ 2026 gap: ${dec26?.cumCust||p.sc} customers → ${fmtMoney(dec26?.arr||0)} ARR. Need ${cust26Needed-(dec26?.cumCust||p.sc)} more to hit ${fmtMoney(p.arr26)}.`});
+  if(dec27&&dec27.cumCust>=cust27Needed)
+    a.push({t:'ok',msg:`✓ 2027: ${dec27.cumCust} customers / ${dec27.drafters} drafters → ${fmtMoney(dec27.arr)} ARR, exceeds ${fmtMoney(p.arr27)} by ${fmtMoney(dec27.arr-p.arr27)}.`});
+  else
+    a.push({t:'warn',msg:`⚠ 2027 gap: ${dec27?.cumCust||0} customers → ${fmtMoney(dec27?.arr||0)} ARR. Need ${cust27Needed-(dec27?.cumCust||0)} more to hit ${fmtMoney(p.arr27)}.`});
+  document.getElementById('alerts').innerHTML=a.map(x=>`<div class="alert ${x.t}">${x.msg}</div>`).join('');
+}
+
+function renderTable(data){
+  const{rows,p}=data;
+  document.getElementById('sched-body').innerHTML=rows.map((r,i)=>{
+    const isEdit=editingIdx===i;
+    const hit26=r.arr>=p.arr26,hit27=r.arr>=p.arr27;
+    const rowCls=r.isGoal27&&hit27?'r-goal27':r.isGoal26&&hit26?'r-goal26':(r.isGoal26||r.isGoal27)?'r-slow':'r-normal';
+    const status=r.isGoal27?(hit27?`<span class="badge b-teal">2027 ✓</span>`:`<span class="badge b-gray">2027 miss</span>`):
+                 r.isGoal26?(hit26?`<span class="badge b-green">2026 ✓</span>`:`<span class="badge b-gray">2026 miss</span>`):
+                 r.y===2026?`<span class="badge b-blue">2026 ramp</span>`:`<span class="badge b-purple">2027 ramp</span>`;
+    const g26cls=r.gap26>0?'neg':'pos',g27cls=r.gap27>0?'neg':'pos';
+    if(isEdit)return`<tr class="${rowCls} editing">
+      <td style="color:var(--text3)">${i+1}</td><td style="font-weight:500">${monthLabel(r.y,r.m)}</td>
+      <td><input class="row-input" type="number" value="${r.newC}" min="0" onchange="updateMonth('${r.y}','${r.m}',+this.value)"></td>
+      <td class="mono">${r.cumCust}</td><td class="mono">${r.drafters}</td>
+      <td class="currency-cell">${fmtMoney(r.mrr)}</td><td class="currency-cell" style="font-weight:600">${fmtMoney(r.arr)}</td>
+      <td class="currency-cell">${fmtMoney(p.arr26)}</td><td class="currency-cell">${fmtMoney(p.arr27)}</td>
+      <td class="currency-cell ${g26cls}">${r.gap26>0?'-':'+'}${fmtMoney(Math.abs(r.gap26))}</td>
+      <td class="currency-cell ${g27cls}">${r.gap27>0?'-':'+'}${fmtMoney(Math.abs(r.gap27))}</td>
+      <td class="currency-cell">${fmtMoney(r.cumRev)}</td><td>${status}</td>
+      <td><button class="row-btn" onclick="clearEdit()">Done</button></td></tr>`;
+    return`<tr class="${rowCls}" onclick="startEdit(${i})" style="cursor:pointer">
+      <td style="color:var(--text3)">${i+1}</td><td style="font-weight:500">${monthLabel(r.y,r.m)}</td>
+      <td class="mono">${r.newC||'—'}</td><td class="mono" style="font-weight:600">${r.cumCust}</td><td class="mono">${r.drafters}</td>
+      <td class="currency-cell">${fmtMoney(r.mrr)}</td><td class="currency-cell" style="font-weight:700;color:var(--navy)">${fmtMoney(r.arr)}</td>
+      <td class="currency-cell" style="color:var(--text3)">${fmtMoney(p.arr26)}</td><td class="currency-cell" style="color:var(--text3)">${fmtMoney(p.arr27)}</td>
+      <td class="currency-cell ${g26cls}">${r.gap26>0?'▼':'▲ '}${fmtMoney(Math.abs(r.gap26),true)}</td>
+      <td class="currency-cell ${g27cls}">${r.gap27>0?'▼':'▲ '}${fmtMoney(Math.abs(r.gap27),true)}</td>
+      <td class="currency-cell">${fmtMoney(r.cumRev,true)}</td><td>${status}</td>
+      <td><button class="row-btn" onclick="event.stopPropagation();startEdit(${i})">Edit</button></td></tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+// RENDER CUSTOMER ROSTER
+// ══════════════════════════════════════
+function renderCustomerRoster(data){
+  const{p,goLiveList}=data;
+  const dpm=p.dpm;
+  const dpmEl=document.getElementById('dpm-inline');
+  if(dpmEl)dpmEl.textContent=dpm.toLocaleString();
+  document.getElementById('existing-count-badge').textContent=`${p.sc} active`;
+
+  // ── Existing ──
+  let existHtml='';
+  for(let i=0;i<p.sc;i++){
+    const c=getCust(i);
+    const mrr=c.drafters*dpm;
+    const hasName=c.name&&c.name.trim().length>0;
+    existHtml+=`<div class="cust-card is-existing">
+      <div class="cust-idx existing">${i+1}</div>
+      <input class="cust-name-input ${hasName?'named':''}" type="text" placeholder="Company ${i+1}…" value="${escHtml(c.name||'')}"
+        oninput="setCustName(${i},this.value);this.classList.toggle('named',this.value.trim().length>0)">
+      <div class="drafter-slider-wrap">
+        <input type="range" min="1" max="10" step="1" value="${c.drafters}"
+          oninput="customerData[${i}]={...getCust(${i}),drafters:+this.value};document.getElementById('ds-${i}').value=this.value;updateSliderTrack(this,'#166534');rebuild()">
+        <div class="drafter-slider-labels"><span>1</span><span>5</span><span>10</span></div>
+      </div>
+      <input class="drafter-spin" type="number" id="ds-${i}" value="${c.drafters}" min="1" max="20"
+        oninput="setCustDrafters(${i},+this.value)">
+      <div class="cust-mrr">${fmtMoney(mrr,true)}<br><span style="font-size:9px;color:var(--text3);font-weight:400">/mo</span></div>
+      <div></div>
+    </div>`;
+  }
+  document.getElementById('existing-customers').innerHTML=existHtml||'<div style="font-size:12px;color:var(--text3);padding:8px">No existing customers — set count in Settings.</div>';
+
+  // ── New ──
+  const totalNew=goLiveList.length;
+  document.getElementById('new-count-badge').textContent=`${totalNew} planned`;
+  let newHtml='';
+  for(let i=0;i<totalNew;i++){
+    const globalIdx=p.sc+i;
+    const c=getCust(globalIdx);
+    const mrr=c.drafters*dpm;
+    const goLive=goLiveList[i];
+    const hasName=c.name&&c.name.trim().length>0;
+    const hasCustom=c.drafters!==p.dpc;
+    newHtml+=`<div class="cust-card ${hasCustom?'has-custom':''}">
+      <div class="cust-idx new-cust">${p.sc+i+1}</div>
+      <input class="cust-name-input ${hasName?'named':''}" type="text" placeholder="Company ${p.sc+i+1}…" value="${escHtml(c.name||'')}"
+        oninput="setCustName(${globalIdx},this.value);this.classList.toggle('named',this.value.trim().length>0)">
+      <div class="drafter-slider-wrap">
+        <input type="range" min="1" max="10" step="1" value="${c.drafters}"
+          oninput="customerData[${globalIdx}]={...getCust(${globalIdx}),drafters:+this.value};document.getElementById('ds-${globalIdx}').value=this.value;updateSliderTrack(this,'#F95411');rebuild()">
+        <div class="drafter-slider-labels"><span>1</span><span>5</span><span>10</span></div>
+      </div>
+      <input class="drafter-spin" type="number" id="ds-${globalIdx}" value="${c.drafters}" min="1" max="20"
+        oninput="setCustDrafters(${globalIdx},+this.value)">
+      <div class="cust-mrr">${fmtMoney(mrr,true)}<br><span style="font-size:9px;color:var(--text3);font-weight:400">${monthLabel(goLive.y,goLive.m)}</span></div>
+      <button class="move-btn" title="Move to existing" onclick="moveToExisting(${i})">✓</button>
+    </div>`;
+  }
+  document.getElementById('new-customers').innerHTML=totalNew>0?newHtml:
+    '<div style="font-size:12px;color:var(--text3);padding:8px">No new customers planned — set monthly pace in Settings.</div>';
+
+  // ── Summary ──
+  let totalDrafters=0,totalMRR=0;
+  for(let i=0;i<p.sc+totalNew;i++){const c=getCust(i);totalDrafters+=c.drafters;totalMRR+=c.drafters*dpm;}
+  const avg=(p.sc+totalNew)>0?(totalDrafters/(p.sc+totalNew)).toFixed(1):'0';
+  document.getElementById('roster-summary').innerHTML=`
+    <div class="rs-item"><div class="rs-label">Total customers</div><div class="rs-val">${p.sc+totalNew}</div></div>
+    <div class="rs-item"><div class="rs-label">Total drafters</div><div class="rs-val">${totalDrafters}</div></div>
+    <div class="rs-item"><div class="rs-label">Avg drafters/cust</div><div class="rs-val">${avg}</div></div>
+    <div class="rs-item"><div class="rs-label">Full roster MRR</div><div class="rs-val">${fmtMoney(totalMRR,true)}</div></div>`;
+
+  setTimeout(()=>{
+    document.querySelectorAll('.is-existing input[type=range]').forEach(el=>updateSliderTrack(el,'#2ECC71'));
+    document.querySelectorAll('.cust-card:not(.is-existing) input[type=range]').forEach(el=>updateSliderTrack(el,'#F95411'));
+  },0);
+}
+
+function updateSliderTrack(el,color){
+  const pct=((el.value-el.min)/(el.max-el.min)*100).toFixed(1);
+  el.style.background=`linear-gradient(to right,${color} ${pct}%,var(--border2) ${pct}%)`;
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ══════════════════════════════════════
+// SLIDERS
+// ══════════════════════════════════════
+function renderSliders(data){
+  const{p,cust26Needed,cust27Needed}=data;
+  const months26=[],months27=[];
+  for(let m=p.startM;m<=12;m++)months26.push(m);
+  for(let m=1;m<=12;m++)months27.push(m);
+
+  const makeSlider=(y,m)=>{
+    const v=getAdd(y,m);
+    return`<div class="scenario-row">
+      <div class="srow-num">${m}</div>
+      <div class="srow-month">${monthLabel(y,m)}</div>
+      <input type="range" min="0" max="10" step="1" value="${v}" style="flex:1"
+        oninput="setAdd(${y},${m},+this.value);document.getElementById('sv-${y}-${m}').value=this.value;syncNewCustomerDefaults();rebuild()">
+      <input class="srow-input" type="number" id="sv-${y}-${m}" value="${v}" min="0" max="20"
+        oninput="setAdd(${y},${m},+this.value);syncNewCustomerDefaults();rebuild()">
+      <div class="srow-info">new customers</div>
+    </div>`;
+  };
+
+  document.getElementById('sliders-2026').innerHTML=months26.map(m=>makeSlider(2026,m)).join('');
+  document.getElementById('sliders-2027').innerHTML=months27.map(m=>makeSlider(2027,m)).join('');
+
+  // ── Pace trackers ──
+  const total26=months26.reduce((s,m)=>s+getAdd(2026,m),0);
+  const total27=months27.reduce((s,m)=>s+getAdd(2027,m),0);
+
+  // 2026: need (cust26Needed - p.sc) new customers from the program start
+  const need26=Math.max(0,cust26Needed-p.sc);
+  // 2027: need (cust27Needed - cust26Needed) additional
+  const need27=Math.max(0,cust27Needed-cust26Needed);
+
+  function renderTracker(elId, scheduled, needed, year){
+    const el=document.getElementById(elId);
+    if(!el)return;
+    const diff=scheduled-needed;
+    const isOver=diff>0,isOn=diff===0,isUnder=diff<0;
+    const cls=isOver?'over':isOn?'ok':'warn';
+    const pillCls=isOver?'pill-over':isOn?'pill-ok':'pill-warn';
+    const pillLabel=isOver?`+${diff} over target`:isOn?'Exactly on target':`${Math.abs(diff)} short of target`;
+    // Bar: max width = 100% represents the needed count; overflow shown as darker fill
+    const maxBar=Math.max(needed,scheduled,1);
+    const targetPct=(needed/maxBar*100).toFixed(1);
+    const fillPct=(Math.min(scheduled,maxBar)/maxBar*100).toFixed(1);
+    el.innerHTML=`<div class="pace-tracker">
+      <div class="pace-header">
+        <div class="pace-title">${year} pace vs. target</div>
+        <span class="pace-status-pill ${pillCls}">${pillLabel}</span>
+      </div>
+      <div class="pace-counts">
+        <div class="pace-stat ${cls}">Scheduled: <strong>${scheduled}</strong></div>
+        <div class="pace-stat">Needed: <strong style="color:var(--text2)">${needed}</strong></div>
+        <div class="pace-stat">Diff: <strong style="${isUnder?'color:var(--red)':isOver?'color:var(--innergy-orange)':'color:var(--green)'}">${diff>=0?'+':''}${diff}</strong></div>
+      </div>
+      <div class="pace-bar-wrap" style="margin-top:.5rem">
+        <div class="pace-bar-fill ${cls}" style="width:${fillPct}%;max-width:100%"></div>
+      </div>
+      <div class="pace-labels">
+        <span>0</span>
+        <span style="position:relative;left:${targetPct}%;transform:translateX(-50%);color:${isUnder?'var(--amber)':'var(--text3)'}">target: ${needed}</span>
+        <span>${maxBar}</span>
+      </div>
+    </div>`;
+  }
+
+  renderTracker('pace-tracker-2026', total26, need26, '2026');
+  renderTracker('pace-tracker-2027', total27, need27, '2027');
+}
+
+function syncNewCustomerDefaults(){
+  const p=getP();
+  const gl=buildGoLiveList(p);
+  for(let i=0;i<gl.length;i++){const idx=p.sc+i;if(!customerData[idx])customerData[idx]={name:'',drafters:p.dpc,movedToExisting:false};}
+}
+
+function renderDerived(data){
+  const{arrPerCustDefault,revenuePerCustDefault,cust26Needed,cust27Needed,p}=data;
+  document.getElementById('derived-box').innerHTML=`
+    <span>Revenue/drafter/month: <strong>${fmtMoney(p.dpm)}</strong></span>
+    <span>Revenue/customer/month (default): <strong>${fmtMoney(revenuePerCustDefault)}</strong></span>
+    <span>Revenue/customer/year (default): <strong>${fmtMoney(arrPerCustDefault)}</strong></span>
+    <span>Customers for ${fmtMoney(p.arr26,true)} ARR: <strong>${cust26Needed}</strong></span>
+    <span>Customers for ${fmtMoney(p.arr27,true)} ARR: <strong>${cust27Needed}</strong></span>
+    <span>Drafters at 2026 target: <strong>${cust26Needed*p.dpc}</strong></span>
+    <span>Drafters at 2027 target: <strong>${cust27Needed*p.dpc}</strong></span>`;
+}
+
+function renderCharts(data){
+  const{rows,p}=data;
+  const labels=rows.map(r=>monthLabel(r.y,r.m));
+  const arrVals=rows.map(r=>r.arr),mrrVals=rows.map(r=>r.mrr);
+  const custVals=rows.map(r=>r.cumCust),draftVals=rows.map(r=>r.drafters);
+  const line26=rows.map(()=>p.arr26),line27=rows.map(()=>p.arr27);
+  const base={responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{family:'DM Sans',size:11},boxWidth:10}},tooltip:{callbacks:{label:ctx=>' '+fmtMoney(ctx.raw)}}},
+    scales:{x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10},maxTicksLimit:12}},
+            y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{family:'DM Mono',size:10},callback:v=>fmtMoney(v,true)}}}};
+  const mk=(id,cfg)=>{if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg);};
+  mk('chart-arr',{type:'line',data:{labels,datasets:[
+    {label:'ARR',data:arrVals,borderColor:'#F95411',backgroundColor:'rgba(249,84,17,.08)',fill:true,tension:.4,pointRadius:3,borderWidth:2},
+    {label:'2026 target',data:line26,borderColor:'#2ECC71',borderDash:[6,3],borderWidth:1.5,pointRadius:0},
+    {label:'2027 target',data:line27,borderColor:'#333345',borderDash:[6,3],borderWidth:1.5,pointRadius:0},
+  ]},options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtMoney(ctx.raw)}`}}}}});
+  mk('chart-mrr',{type:'bar',data:{labels,datasets:[
+    {label:'MRR',data:mrrVals,backgroundColor:rows.map(r=>r.y===2026?'rgba(249,84,17,.75)':'rgba(51,51,69,.65)'),borderRadius:4}
+  ]},options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>` MRR: ${fmtMoney(ctx.raw)}`}}}}});
+  const bc={...base,plugins:{...base.plugins,tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw}`}}},
+    scales:{x:{grid:{display:false},ticks:{font:{family:'DM Mono',size:10},maxTicksLimit:12}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{family:'DM Mono',size:10}}}}};
+  mk('chart-cust',{type:'line',data:{labels,datasets:[{label:'Customers',data:custVals,borderColor:'#F95411',backgroundColor:'rgba(249,84,17,.08)',fill:true,tension:.4,pointRadius:3,borderWidth:2}]},options:bc});
+  mk('chart-draft',{type:'line',data:{labels,datasets:[{label:'Drafters',data:draftVals,borderColor:'#333345',backgroundColor:'rgba(51,51,69,.08)',fill:true,tension:.4,pointRadius:3,borderWidth:2}]},options:bc});
+}
+
+// ══════════════════════════════════════
+// HELPERS & MAIN
+// ══════════════════════════════════════
+function startEdit(i){editingIdx=i;const d=calcSchedule();renderTable(d);}
+function clearEdit(){editingIdx=null;const d=calcSchedule();renderTable(d);}
+function updateMonth(y,m,v){setAdd(+y,+m,v);syncNewCustomerDefaults();rebuild();}
+
+function showTab(name,btn){
+  ['overview','monthly','customers','weekly','settings'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display=t===name?'':'none';
+  });
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  if(name==='weekly')renderWeeklyPlan();
+}
+
+function exportCSV(){
+  const d=calcSchedule();
+  const hdrs=['Month','New Customers','Cumul Customers','Total Drafters','MRR','ARR','2026 Target','2027 Target','Gap to 2026','Gap to 2027','Cumul Revenue'];
+  const csvRows=[hdrs.join(','),...d.rows.map(r=>[monthLabel(r.y,r.m),r.newC,r.cumCust,r.drafters,Math.round(r.mrr),Math.round(r.arr),Math.round(d.p.arr26),Math.round(d.p.arr27),Math.round(r.gap26),Math.round(r.gap27),Math.round(r.cumRev)].join(','))];
+  const custHdrs=['Customer #','Company Name','Status','Go-Live Month','Drafters','Monthly Revenue'];
+  const custRows=[custHdrs.join(',')];
+  const{p,goLiveList}=d;
+  for(let i=0;i<p.sc;i++){const c=getCust(i);custRows.push([i+1,c.name||`Customer ${i+1}`,'Existing','Pre-program',c.drafters,Math.round(c.drafters*p.dpm)].join(','));}
+  goLiveList.forEach((gl,i)=>{const idx=p.sc+i;const c=getCust(idx);custRows.push([p.sc+i+1,c.name||`Customer ${p.sc+i+1}`,'New',monthLabel(gl.y,gl.m),c.drafters,Math.round(c.drafters*p.dpm)].join(','));});
+  const blob=new Blob([csvRows.join('\n')+'\n\nCUSTOMER ROSTER\n'+custRows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='arr-ramp-plan.csv';a.click();
+}
+
+function rebuild(){
+  syncNewCustomerDefaults();
+  const data=calcSchedule();
+  renderKPIs(data);
+  renderAlerts(data);
+  renderTable(data);
+  renderSliders(data);
+  renderDerived(data);
+  renderCharts(data);
+  renderCustomerRoster(data);
+  // Only re-render weekly plan if that tab is visible
+  const weekTab=document.getElementById('tab-weekly');
+  if(weekTab&&weekTab.style.display!=='none')renderWeeklyPlan();
+}
+
+autoFill();
+</script>
+</body>
+</html>
