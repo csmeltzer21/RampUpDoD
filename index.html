@@ -1231,157 +1231,205 @@ async function exportPDF() {
     const data = calcSchedule();
     const p = data.p;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    let pgNum = 1; // global page counter for the whole export
 
-    const PW = 297, PH = 210; // A4 landscape mm
-    const ORANGE = [249, 84, 17];
-    const DARK   = [51, 51, 69];
-    const WHITE  = [255, 255, 255];
-    const LGRAY  = [245, 245, 247];
-    const MGRAY  = [200, 200, 205];
-    const GREEN  = [22, 101, 52];
+    const PW = 297, PH = 210;
+    const ORANGE   = [249, 84, 17];
+    const DARK     = [51, 51, 69];
+    const WHITE    = [255, 255, 255];
+    const LGRAY    = [245, 245, 247];
+    const MGRAY    = [200, 200, 205];
+    const GREEN    = [22, 101, 52];
     const GREEN_BG = [220, 252, 231];
-    const AMBER  = [146, 64, 14];
+    const AMBER    = [146, 64, 14];
     const AMBER_BG = [254, 243, 199];
-    const RED    = [153, 27, 27];
-    const RED_BG = [254, 226, 226];
+    const RED      = [153, 27, 27];
+    const RED_BG   = [254, 226, 226];
 
     const today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 
     // ── helpers ──
-    function setFont(size, style='normal', color=DARK) {
-      doc.setFontSize(size);
-      doc.setFont('helvetica', style);
-      doc.setTextColor(...color);
-    }
-    function fillRect(x, y, w, h, color) {
-      doc.setFillColor(...color);
-      doc.rect(x, y, w, h, 'F');
-    }
-    function drawLine(x1, y1, x2, y2, color=MGRAY, lw=0.3) {
-      doc.setDrawColor(...color);
-      doc.setLineWidth(lw);
-      doc.line(x1, y1, x2, y2);
-    }
-    function fmtM(n) {
-      if (Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(2) + 'M';
-      if (Math.abs(n) >= 1e3) return '$' + Math.round(n/1e3) + 'K';
-      return '$' + Math.round(n);
-    }
-    function fmtFull(n) { return '$' + Math.round(n).toLocaleString(); }
+    const sf = (size, style='normal', color=DARK) => {
+      doc.setFontSize(size); doc.setFont('helvetica', style); doc.setTextColor(...color);
+    };
+    const fr = (x, y, w, h, color) => { doc.setFillColor(...color); doc.rect(x, y, w, h, 'F'); };
+    const dl = (x1, y1, x2, y2, color=MGRAY, lw=0.3) => { doc.setDrawColor(...color); doc.setLineWidth(lw); doc.line(x1, y1, x2, y2); };
+    const fmtM = n => { if(Math.abs(n)>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(Math.abs(n)>=1e3) return '$'+Math.round(n/1e3)+'K'; return '$'+Math.round(n); };
+    const fmtFull = n => '$'+Math.round(n).toLocaleString();
 
-    // ── header bar (shared across all pages) ──
-    function drawHeader(title) {
-      fillRect(0, 0, PW, 14, DARK);
-      fillRect(0, 14, PW, 1.5, ORANGE);
-      // Logo text (fallback — no image embed needed for PDF)
-      setFont(9, 'bold', ORANGE);
-      doc.text('INNERGY®', 10, 9.5);
-      setFont(7, 'normal', [148, 174, 200]);
-      doc.text('innergy.com', 10, 12.5);
-      setFont(10, 'bold', WHITE);
-      doc.text(title, PW/2, 9.5, {align:'center'});
-      setFont(7, 'normal', [148, 174, 200]);
-      doc.text(`ARR Ramp-Up Planner  ·  Generated ${today}`, PW - 10, 9.5, {align:'right'});
-    }
+    const drawHeader = (title) => {
+      fr(0, 0, PW, 14, DARK); fr(0, 14, PW, 1.5, ORANGE);
+      sf(9, 'bold', ORANGE); doc.text('INNERGY®', 10, 9.5);
+      sf(7, 'normal', [148,174,200]); doc.text('innergy.com', 10, 12.5);
+      sf(10, 'bold', WHITE); doc.text(title, PW/2, 9.5, {align:'center'});
+      sf(7, 'normal', [148,174,200]); doc.text(`ARR Ramp-Up Planner  ·  ${today}`, PW-10, 9.5, {align:'right'});
+    };
+    const drawFooter = (pg, total) => {
+      fr(0, PH-8, PW, 8, DARK);
+      sf(7, 'normal', [148,174,200]);
+      doc.text('INNERGY® · innergy.com · Confidential', 10, PH-3.5);
+      doc.text(`Page ${pg}`, PW-10, PH-3.5, {align:'right'});
+    };
+    // After all pages are added we'll update footers via pgNum tracking
 
-    // ── footer bar ──
-    function drawFooter(pageNum, total) {
-      fillRect(0, PH - 8, PW, 8, DARK);
-      setFont(7, 'normal', [148, 174, 200]);
-      doc.text('INNERGY® · innergy.com · Confidential', 10, PH - 3.5);
-      doc.text(`Page ${pageNum} of ${total}`, PW - 10, PH - 3.5, {align:'right'});
-    }
-
-    // ── KPI card ──
-    function drawKPICard(x, y, w, h, label, value, sub, status) {
-      const bgMap = {ok:GREEN_BG, warn:AMBER_BG, err:RED_BG, info:[239, 235, 254]};
-      const borderMap = {ok:[134, 239, 172], warn:[252, 211, 77], err:[252, 165, 165], info:[196, 181, 253]};
-      const valMap = {ok:GREEN, warn:AMBER, err:RED, info:[91, 33, 182]};
-      fillRect(x, y, w, h, bgMap[status]||LGRAY);
-      doc.setDrawColor(...(borderMap[status]||MGRAY));
-      doc.setLineWidth(0.4);
-      doc.rect(x, y, w, h);
-      setFont(7, 'normal', [107, 107, 126]);
-      doc.text(label, x+3, y+5);
-      setFont(13, 'bold', valMap[status]||DARK);
-      doc.text(value, x+3, y+12.5);
-      setFont(6.5, 'normal', [107, 107, 126]);
-      doc.text(sub, x+3, y+17, {maxWidth: w-6});
-    }
-
-    // ── section heading ──
-    function sectionHead(x, y, text) {
-      setFont(9, 'bold', ORANGE);
-      doc.text(text.toUpperCase(), x, y);
-      drawLine(x, y+1.5, x+40, y+1.5, ORANGE, 0.5);
-    }
-
-    const TOTAL_PAGES = 4;
+    // ── KPI card helper ──
+    const drawKPI = (x, y, w, h, label, value, sub, status) => {
+      const bg   = {ok:GREEN_BG, warn:AMBER_BG, err:RED_BG, info:[239,235,254]}[status]||LGRAY;
+      const bdr  = {ok:[134,239,172], warn:[252,211,77], err:[252,165,165], info:[196,181,253]}[status]||MGRAY;
+      const vc   = {ok:GREEN, warn:AMBER, err:RED, info:[91,33,182]}[status]||DARK;
+      fr(x, y, w, h, bg);
+      doc.setDrawColor(...bdr); doc.setLineWidth(0.4); doc.rect(x, y, w, h);
+      // left accent bar
+      doc.setFillColor(...(status==='ok'?GREEN:status==='warn'?AMBER:status==='err'?RED:ORANGE));
+      doc.rect(x, y, 1.5, h, 'F');
+      sf(6.5, 'normal', [107,107,126]); doc.text(label, x+4, y+5, {maxWidth:w-6});
+      sf(12, 'bold', vc); doc.text(value, x+4, y+12);
+      sf(6, 'normal', [107,107,126]); doc.text(sub, x+4, y+17, {maxWidth:w-6});
+    };
 
     // ══════════════════════
     // PAGE 1 — EXECUTIVE SUMMARY
     // ══════════════════════
     drawHeader('Executive Summary');
 
-    const dec26 = data.rows.find(r=>r.y===2026&&r.m===12);
-    const dec27 = data.rows.find(r=>r.y===2027&&r.m===12);
-    const arr26 = dec26?.arr||0, arr27 = dec27?.arr||0;
-    const hit26 = arr26 >= p.arr26, hit27 = arr27 >= p.arr27;
-
-    // KPI row
-    const kpiY = 20, kpiH = 22, kpiW = 54, kpiGap = 4;
-    const kpis = [
-      {label:'2026 ARR (Dec run rate)', value:fmtM(arr26), sub:`${((arr26/p.arr26)*100).toFixed(0)}% of ${fmtM(p.arr26)} target`, status:hit26?'ok':'warn'},
-      {label:'2027 ARR (Dec run rate)', value:fmtM(arr27), sub:`${((arr27/p.arr27)*100).toFixed(0)}% of ${fmtM(p.arr27)} target`, status:hit27?'ok':'warn'},
-      {label:'Customers needed (2026→2030)', value:`${data.custNeeded[2026]||0} / ${data.custNeeded[2030]||0}`, sub:`At $${p.dpm.toLocaleString()}/drafter/mo × ${p.dpc} drafters`, status:'info'},
-      {label:'Drafters at 2030 target', value:`${(data.custNeeded[2030]||0)*p.dpc}`, sub:`${data.custNeeded[2030]||0} customers × ${p.dpc} default drafters`, status:'info'},
-      {label:'MRR at Dec 2027', value:fmtM(dec27?.mrr||0), sub:`${dec27?.drafters||0} drafters × ${fmtM(p.dpm)}/mo`, status:hit27?'ok':'warn'},
-    ];
-    kpis.forEach((k,i)=>drawKPICard(10 + i*(kpiW+kpiGap), kpiY, kpiW, kpiH, k.label, k.value, k.sub, k.status));
-
-    // Status alerts
-    let ay = 48;
-    const alerts = [];
-    if(hit26) alerts.push({t:'ok', msg:`2026 goal achieved: ${dec26?.cumCust} customers / ${dec26?.drafters} drafters → ${fmtFull(arr26)} ARR — exceeds ${fmtFull(p.arr26)} target by ${fmtFull(arr26-p.arr26)}`});
-    else alerts.push({t:'warn', msg:`2026 gap: ${dec26?.cumCust||p.sc} customers → ${fmtFull(arr26)} ARR. Need ${(data.custNeeded[2026]||0)-(dec26?.cumCust||p.sc)} more customers to hit ${fmtFull(p.arr26)} target`});
-    if(hit27) alerts.push({t:'ok', msg:`2027 goal achieved: ${dec27?.cumCust} customers / ${dec27?.drafters} drafters → ${fmtFull(arr27)} ARR — exceeds ${fmtFull(p.arr27)} target by ${fmtFull(arr27-p.arr27)}`});
-    else alerts.push({t:'warn', msg:`2027 gap: ${dec27?.cumCust||0} customers → ${fmtFull(arr27)} ARR. Need ${(data.custNeeded[2027]||0)-(dec27?.cumCust||0)} more customers to hit ${fmtFull(p.arr27)} target`});
-
-    alerts.forEach(a => {
-      const bg = a.t==='ok' ? GREEN_BG : AMBER_BG;
-      const border = a.t==='ok' ? [134,239,172] : [252,211,77];
-      const tc = a.t==='ok' ? GREEN : AMBER;
-      fillRect(10, ay, PW-20, 8, bg);
-      doc.setDrawColor(...border); doc.setLineWidth(0.3); doc.rect(10, ay, PW-20, 8);
-      doc.setFillColor(...(a.t==='ok' ? GREEN : AMBER));
-      doc.rect(10, ay, 1.5, 8, 'F');
-      setFont(7.5, 'normal', tc);
-      doc.text((a.t==='ok' ? '✓  ' : '⚠  ') + a.msg, 14, ay+5, {maxWidth: PW-28});
-      ay += 10;
+    // ── 5 KPI cards (one per year) ──
+    const years = [2026,2027,2028,2029,2030];
+    const kpiW = (PW-20)/5 - 2;
+    const kpiH = 24;
+    const kpiY = 18;
+    years.forEach((y, i) => {
+      const tgt = arrTarget(p, y);
+      if (!tgt) return;
+      const dr = data.rows.find(r=>r.y===y&&r.m===12);
+      const arr = dr?.arr||0;
+      const hit = arr >= tgt;
+      const pct = Math.min(100, (arr/tgt)*100);
+      const need = data.custNeeded[y]||0;
+      drawKPI(10 + i*(kpiW+2), kpiY, kpiW, kpiH,
+        `${y} ARR Target`,
+        fmtM(arr),
+        `${pct.toFixed(0)}% of ${fmtM(tgt)}  ·  ${need} custs needed`,
+        hit?'ok':'warn'
+      );
     });
 
-    // Revenue model summary box
-    ay += 2;
-    sectionHead(10, ay, 'Revenue model');
-    ay += 6;
-    fillRect(10, ay, PW-20, 16, LGRAY);
-    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.3); doc.rect(10, ay, PW-20, 16);
-    const modelItems = [
-      `Price per drafter/month: ${fmtFull(p.dpm)}`,
-      `Default drafters per customer: ${p.dpc}`,
-      `Revenue per customer/month: ${fmtFull(p.dpm*p.dpc)}`,
-      `Revenue per customer/year: ${fmtFull(p.dpm*p.dpc*12)}`,
-      `Starting customers: ${p.sc}`,
-      `Program start: ${monthLabel(2026,p.startM)}`,
-    ];
-    modelItems.forEach((item, i) => {
-      const col = i % 3, row = Math.floor(i/3);
-      const colW = (PW-20)/3;
-      setFont(7.5, 'normal', DARK);
-      doc.text('• ' + item, 14 + col*colW, ay + 5 + row*6);
+    // ── Progress bar strip ──
+    let pby = kpiY + kpiH + 4;
+    fr(10, pby, PW-20, 5, LGRAY);
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2); doc.rect(10, pby, PW-20, 5);
+    years.forEach((y, i) => {
+      const tgt = arrTarget(p, y); if (!tgt) return;
+      const dr = data.rows.find(r=>r.y===y&&r.m===12);
+      const pct = Math.min(100, ((dr?.arr||0)/tgt)*100);
+      const segW = ((PW-20)/5 - 2);
+      const segX = 10 + i*(segW+2);
+      const hit = (dr?.arr||0) >= tgt;
+      fr(segX, pby, segW*(pct/100), 5, hit?GREEN:[249,84,17]);
     });
 
-    drawFooter(1, TOTAL_PAGES);
+    // ── Status alerts (all 5 years) ──
+    let ay = pby + 10;
+    years.forEach(y => {
+      const tgt = arrTarget(p, y); if (!tgt) return;
+      const dr = data.rows.find(r=>r.y===y&&r.m===12);
+      const arr = dr?.arr||0;
+      const hit = arr >= tgt;
+      const need = data.custNeeded[y]||0;
+      const msg = hit
+        ? `✓  ${y}: ${dr.cumCust} customers / ${dr.drafters} drafters → ${fmtFull(arr)} ARR  —  exceeds ${fmtFull(tgt)} target by ${fmtFull(arr-tgt)}`
+        : `⚠  ${y}: ${dr?.cumCust||p.sc} customers → ${fmtFull(arr)} ARR  —  ${need-(dr?.cumCust||0)} more customers needed to hit ${fmtFull(tgt)}`;
+      const bg = hit?GREEN_BG:AMBER_BG;
+      const bc = hit?[134,239,172]:[252,211,77];
+      const tc = hit?GREEN:AMBER;
+      fr(10, ay, PW-20, 7.5, bg);
+      doc.setDrawColor(...bc); doc.setLineWidth(0.25); doc.rect(10, ay, PW-20, 7.5);
+      doc.setFillColor(...(hit?GREEN:AMBER)); doc.rect(10, ay, 1.5, 7.5, 'F');
+      sf(7, 'normal', tc);
+      doc.text(msg, 14, ay+4.8, {maxWidth: PW-26});
+      ay += 8.5;
+    });
+
+    // ── Charts below the alerts — fill remaining space on exec page, overflow to extra pages ──
+    ay += 4;
+
+    // How much vertical space is left on page 1 (before footer)?
+    const pageBottom = PH - 10;
+    const remainingH = pageBottom - ay;
+    const cW = (PW - 26) / 2;
+
+    // Helper: capture a chart into a box, resizing for clean output
+    const captureEl = async (el, x, y, w, h) => {
+      if (!el) return;
+      try {
+        const parent = el.parentElement;
+        parent.style.width  = '540px';
+        parent.style.height = '320px';
+        el.style.width  = '540px';
+        el.style.height = '320px';
+        const chartInst = Object.values(Chart.instances||{}).find(c=>c.canvas===el);
+        if (chartInst) { chartInst.resize(540, 320); chartInst.draw(); }
+        await new Promise(r=>setTimeout(r,100));
+        const cnv = await html2canvas(el, {scale:2, useCORS:true, backgroundColor:'#ffffff', width:540, height:320, logging:false});
+        const imgData = cnv.toDataURL('image/png');
+        fr(x, y, w, h, WHITE);
+        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.3); doc.rect(x, y, w, h);
+        doc.addImage(imgData, 'PNG', x+1, y+1, w-2, h-2);
+        parent.style.width = ''; parent.style.height = '';
+        el.style.width = ''; el.style.height = '';
+        if (chartInst) chartInst.resize();
+      } catch(e) { console.warn('Chart capture error', e); }
+    };
+
+    const chartEls = [
+      {el: document.getElementById('chart-arr'),   label: 'ARR Ramp vs. Targets'},
+      {el: document.getElementById('chart-mrr'),   label: 'Monthly Recurring Revenue (MRR)'},
+      {el: document.getElementById('chart-cust'),  label: 'Cumulative Customers'},
+      {el: document.getElementById('chart-draft'), label: 'Cumulative Drafters'},
+    ];
+
+    // Decide layout: can we fit 2 charts per row? Use min chart height of 55mm
+    const minCH = 55;
+    let chartsPerRow = 2;
+    let chartH = Math.max(minCH, Math.floor(remainingH / 2) - 6);
+
+    // Place charts in pairs, spilling to new pages as needed
+    let curX = 10, curY = ay;
+    let chartCol = 0;
+
+    for (let ci = 0; ci < chartEls.length; ci++) {
+      const {el, label} = chartEls[ci];
+      const isNewRow = chartCol === 0;
+
+      // Check if we need a new page
+      if (curY + chartH + 7 > pageBottom) {
+        drawFooter(pgNum, 5);
+        doc.addPage(); pgNum++;
+        drawHeader('Charts (continued)');
+        curY = 20;
+        chartH = Math.max(minCH, Math.floor((pageBottom - 20) / 2) - 6);
+        chartCol = 0;
+        curX = 10;
+      }
+
+      // Label above chart
+      sf(7, 'bold', [107,107,126]);
+      doc.text(label, curX + cW/2, curY + 5, {align:'center'});
+
+      await captureEl(el, curX, curY + 6, cW, chartH);
+
+      chartCol++;
+      if (chartCol >= chartsPerRow) {
+        // Move to next row
+        curY += chartH + 10;
+        chartCol = 0;
+        curX = 10;
+      } else {
+        // Move to next column
+        curX = 10 + cW + 6;
+      }
+    }
+
+    drawFooter(pgNum, 5);
 
     // ══════════════════════
     // PAGE 2 — MONTHLY SCHEDULE TABLE
@@ -1389,246 +1437,147 @@ async function exportPDF() {
     doc.addPage();
     drawHeader('Monthly Revenue Schedule');
 
-    // Table setup
     const cols = [
-      {h:'Month',      w:22, align:'left'},
-      {h:'New Custs',  w:18, align:'center'},
-      {h:'Cumul Custs',w:20, align:'center'},
-      {h:'Drafters',   w:18, align:'center'},
-      {h:'MRR',        w:26, align:'right'},
-      {h:'ARR',        w:28, align:'right'},
-      {h:'2026 Target',w:26, align:'right'},
-      {h:'2027 Target',w:26, align:'right'},
-      {h:'Gap 2026',   w:26, align:'right'},
-      {h:'Gap 2027',   w:26, align:'right'},
-      {h:'Cumul Rev',  w:28, align:'right'},
+      {h:'Month',      w:22, a:'left'},
+      {h:'New Custs',  w:16, a:'center'},
+      {h:'Cumul Custs',w:19, a:'center'},
+      {h:'Drafters',   w:17, a:'center'},
+      {h:'MRR',        w:25, a:'right'},
+      {h:'ARR',        w:27, a:'right'},
+      {h:'Year Target',w:27, a:'right'},
+      {h:'Gap',        w:27, a:'right'},
+      {h:'Cumul Rev',  w:27, a:'right'},
+      {h:'Status',     w:16, a:'center'},
     ];
-    const totalColW = cols.reduce((s,c)=>s+c.w,0);
-    const tableX = (PW - totalColW) / 2;
-    const rowH = 6.5;
+    const tW = cols.reduce((s,c)=>s+c.w,0);
+    const tX = (PW-tW)/2;
+    const rH = 5.8;
     let ty = 20;
+    pgNum = 2;
 
-    // Header row
-    fillRect(tableX, ty, totalColW, 8, ORANGE);
-    let cx = tableX;
-    cols.forEach(col => {
-      setFont(6.5, 'bold', WHITE);
-      doc.text(col.h, col.align==='right' ? cx+col.w-2 : col.align==='center' ? cx+col.w/2 : cx+2, ty+5.5, {align: col.align==='center'?'center':col.align==='right'?'right':'left'});
-      cx += col.w;
-    });
-    ty += 8;
+    const drawColHdrs = (atY) => {
+      fr(tX, atY, tW, 7.5, ORANGE);
+      let cx = tX;
+      cols.forEach(col => {
+        sf(6, 'bold', WHITE);
+        doc.text(col.h, col.a==='right'?cx+col.w-2:col.a==='center'?cx+col.w/2:cx+2, atY+5.2,
+          {align:col.a==='center'?'center':col.a==='right'?'right':'left'});
+        cx += col.w;
+      });
+      return atY + 7.5;
+    };
+    ty = drawColHdrs(ty);
 
-    // Data rows
     let prevY = null;
     data.rows.forEach((row, ri) => {
-      // Year separator
       if (row.y !== prevY) {
-        fillRect(tableX, ty, totalColW, 5, DARK);
-        setFont(7, 'bold', WHITE);
-        doc.text(`${row.y} RAMP`, tableX + 4, ty + 3.5);
-        ty += 5;
-        prevY = row.y;
+        if (ty + 5 > PH-12) {
+          drawFooter(pgNum, 5); doc.addPage(); pgNum++;
+          drawHeader('Monthly Revenue Schedule (continued)');
+          ty = drawColHdrs(20);
+        }
+        fr(tX, ty, tW, 5, DARK); sf(6.5,'bold',WHITE);
+        doc.text(`── ${row.y} ──`, tX+4, ty+3.5);
+        ty += 5; prevY = row.y;
       }
-      // Page break check
-      if (ty + rowH > PH - 14) {
-        drawFooter(2, TOTAL_PAGES);
-        doc.addPage();
+      if (ty + rH > PH-12) {
+        drawFooter(pgNum, 5); doc.addPage(); pgNum++;
         drawHeader('Monthly Revenue Schedule (continued)');
-        ty = 20;
-        // Re-draw column headers
-        fillRect(tableX, ty, totalColW, 8, ORANGE);
-        let cx2 = tableX;
-        cols.forEach(col => {
-          setFont(6.5, 'bold', WHITE);
-          doc.text(col.h, col.align==='right' ? cx2+col.w-2 : col.align==='center' ? cx2+col.w/2 : cx2+2, ty+5.5, {align: col.align==='center'?'center':col.align==='right'?'right':'left'});
-          cx2 += col.w;
-        });
-        ty += 8;
+        ty = drawColHdrs(20);
       }
-
-      const bg = row.isYearEnd&&row.onTrack ? [220,252,231] :
+      const bg = row.isYearEnd && row.onTrack ? GREEN_BG :
+                 row.isYearEnd && !row.onTrack ? AMBER_BG :
                  ri%2===0 ? WHITE : LGRAY;
-      fillRect(tableX, ty, totalColW, rowH, bg);
-      drawLine(tableX, ty+rowH, tableX+totalColW, ty+rowH, MGRAY, 0.2);
-
-      const vals = [
-        monthLabel(row.y,row.m),
-        row.newC||'—',
-        row.cumCust,
-        row.drafters,
-        fmtM(row.mrr),
-        fmtM(row.arr),
-        fmtM(p.arr26),
-        fmtM(p.arr27),
-        (row.gap26>0?'-':'+') + fmtM(Math.abs(row.gap26)),
-        (row.gap27>0?'-':'+') + fmtM(Math.abs(row.gap27)),
+      fr(tX, ty, tW, rH, bg);
+      dl(tX, ty+rH, tX+tW, ty+rH, MGRAY, 0.15);
+      const gapCls = row.isYearEnd ? (row.gapYear>0 ? RED : GREEN) : [160,160,170];
+      const rowVals = [
+        monthLabel(row.y,row.m), row.newC||'—', row.cumCust, row.drafters,
+        fmtM(row.mrr), fmtM(row.arr),
+        row.isYearEnd ? fmtM(row.yearTarget) : '',
+        row.isYearEnd ? (row.gapYear>0?'-':'+')+fmtM(Math.abs(row.gapYear)) : '',
         fmtM(row.cumRev),
+        row.isYearEnd ? (row.onTrack?'✓ Hit':'✗ Miss') : '',
       ];
-      let vx = tableX;
-      vals.forEach((v, vi) => {
+      let vx = tX;
+      rowVals.forEach((v, vi) => {
         const col = cols[vi];
-        let color = DARK;
-        if (vi===8) color = row.gap26>0 ? RED : GREEN;
-        if (vi===9) color = row.gap27>0 ? RED : GREEN;
-        if (vi===5 && row.isYearEnd) color = DARK;
-        setFont(6.5, vi===0?'bold':'normal', color);
-        doc.text(String(v), col.align==='right' ? vx+col.w-2 : col.align==='center' ? vx+col.w/2 : vx+2, ty+4.5, {align: col.align==='center'?'center':col.align==='right'?'right':'left'});
+        let tc = DARK;
+        if (vi===7) tc = gapCls;
+        if (vi===9) tc = row.isYearEnd ? (row.onTrack?GREEN:RED) : DARK;
+        sf(6, vi===0?'bold':'normal', tc);
+        doc.text(String(v), col.a==='right'?vx+col.w-2:col.a==='center'?vx+col.w/2:vx+2, ty+4,
+          {align:col.a==='center'?'center':col.a==='right'?'right':'left'});
         vx += col.w;
       });
-      ty += rowH;
+      ty += rH;
     });
-
-    drawFooter(2, TOTAL_PAGES);
+    drawFooter(pgNum, 5);
 
     // ══════════════════════
-    // PAGE 3 — CUSTOMER ROSTER
+    // PAGE (customer) — ROSTER
     // ══════════════════════
-    doc.addPage();
+    doc.addPage(); pgNum++;
     drawHeader('Customer Roster');
 
-    const custCols = [
-      {h:'#',           w:12, align:'center'},
-      {h:'Company Name', w:62, align:'left'},
-      {h:'Status',       w:22, align:'center'},
-      {h:'Go-Live',      w:28, align:'center'},
-      {h:'Drafters',     w:22, align:'center'},
-      {h:'MRR/mo',       w:28, align:'right'},
-      {h:'ARR/yr',       w:30, align:'right'},
+    const cCols = [
+      {h:'#', w:11, a:'center'}, {h:'Company Name', w:60, a:'left'},
+      {h:'Status', w:20, a:'center'}, {h:'Go-Live', w:28, a:'center'},
+      {h:'Drafters', w:20, a:'center'}, {h:'MRR/mo', w:26, a:'right'}, {h:'ARR/yr', w:28, a:'right'},
     ];
-    const custTotalW = custCols.reduce((s,c)=>s+c.w,0);
-    const custX = (PW - custTotalW) / 2;
+    const cTW = cCols.reduce((s,c)=>s+c.w,0);
+    const cX = (PW-cTW)/2;
     let cy = 20;
 
-    // Summary stats first
-    const goLiveList = data.goLiveList;
-    const totalCusts = p.sc + goLiveList.length;
-    let totalDrafters = 0, totalMRR = 0;
-    for (let i=0; i<totalCusts; i++) { const c=getCust(i); totalDrafters+=c.drafters; totalMRR+=c.drafters*p.dpm; }
+    const glList = data.goLiveList;
+    const totC = p.sc+glList.length;
+    let totD=0, totM=0;
+    for(let i=0;i<totC;i++){const c=getCust(i);totD+=c.drafters;totM+=c.drafters*p.dpm;}
 
-    const summaryItems = [
-      {l:'Total customers', v:String(totalCusts)},
-      {l:'Existing', v:String(p.sc)},
-      {l:'New to onboard', v:String(goLiveList.length)},
-      {l:'Total drafters', v:String(totalDrafters)},
-      {l:'Avg drafters/cust', v:(totalCusts>0?totalDrafters/totalCusts:0).toFixed(1)},
-      {l:'Full roster MRR', v:fmtM(totalMRR)},
-    ];
-    const sW = (custTotalW) / summaryItems.length;
-    summaryItems.forEach((s,i) => {
-      fillRect(custX + i*sW, cy, sW-1, 14, i%2===0 ? LGRAY : WHITE);
-      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.2); doc.rect(custX+i*sW, cy, sW-1, 14);
-      setFont(6.5, 'normal', [107,107,126]);
-      doc.text(s.l, custX+i*sW+3, cy+5);
-      setFont(11, 'bold', DARK);
-      doc.text(s.v, custX+i*sW+3, cy+12);
+    // Summary bar
+    const si=[{l:'Customers',v:String(totC)},{l:'Existing',v:String(p.sc)},{l:'New',v:String(glList.length)},
+              {l:'Drafters',v:String(totD)},{l:'Avg/cust',v:(totC>0?totD/totC:0).toFixed(1)},{l:'Full MRR',v:fmtM(totM)}];
+    const sW2 = cTW/si.length;
+    si.forEach((s,i)=>{
+      fr(cX+i*sW2,cy,sW2-1,13,i%2===0?LGRAY:WHITE);
+      doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(cX+i*sW2,cy,sW2-1,13);
+      sf(6,'normal',[107,107,126]);doc.text(s.l,cX+i*sW2+3,cy+5);
+      sf(10,'bold',DARK);doc.text(s.v,cX+i*sW2+3,cy+11);
     });
-    cy += 18;
+    cy+=16;
 
-    // Table header
-    fillRect(custX, cy, custTotalW, 7, ORANGE);
-    let hx = custX;
-    custCols.forEach(col => {
-      setFont(6.5, 'bold', WHITE);
-      doc.text(col.h, col.align==='right'?hx+col.w-2:col.align==='center'?hx+col.w/2:hx+2, cy+5, {align:col.align==='center'?'center':col.align==='right'?'right':'left'});
-      hx += col.w;
-    });
-    cy += 7;
-
-    // Existing
-    for (let i=0; i<p.sc; i++) {
-      if (cy + 6.5 > PH-14) {
-        drawFooter(3, TOTAL_PAGES);
-        doc.addPage();
-        drawHeader('Customer Roster (continued)');
-        cy = 20;
-      }
-      const c = getCust(i);
-      const mrr = c.drafters * p.dpm;
-      const bg = i%2===0 ? GREEN_BG : WHITE;
-      fillRect(custX, cy, custTotalW, 6.5, bg);
-      drawLine(custX, cy+6.5, custX+custTotalW, cy+6.5, MGRAY, 0.2);
-      const vals = [String(i+1), c.name||`Customer ${i+1}`, 'ACTIVE', 'Pre-program', String(c.drafters), fmtM(mrr), fmtM(mrr*12)];
-      let vx = custX;
-      vals.forEach((v,vi)=>{
-        const col = custCols[vi];
-        setFont(6.5, vi===1?'bold':'normal', vi===2?GREEN:DARK);
-        doc.text(v, col.align==='right'?vx+col.w-2:col.align==='center'?vx+col.w/2:vx+2, cy+4.5, {align:col.align==='center'?'center':col.align==='right'?'right':'left', maxWidth:col.w-3});
-        vx += col.w;
-      });
-      cy += 6.5;
-    }
-    // New
-    goLiveList.forEach((gl,i) => {
-      if (cy + 6.5 > PH-14) {
-        drawFooter(3, TOTAL_PAGES);
-        doc.addPage();
-        drawHeader('Customer Roster (continued)');
-        cy = 20;
-      }
-      const gi = p.sc+i;
-      const c = getCust(gi);
-      const mrr = c.drafters * p.dpm;
-      const bg = i%2===0 ? WHITE : LGRAY;
-      fillRect(custX, cy, custTotalW, 6.5, bg);
-      drawLine(custX, cy+6.5, custX+custTotalW, cy+6.5, MGRAY, 0.2);
-      const vals = [String(gi+1), c.name||`Customer ${gi+1}`, 'SCHEDULED', monthLabel(gl.y,gl.m), String(c.drafters), fmtM(mrr), fmtM(mrr*12)];
-      let vx = custX;
-      vals.forEach((v,vi)=>{
-        const col = custCols[vi];
-        const tc = vi===2 ? [37,99,168] : DARK;
-        setFont(6.5, vi===1?'bold':'normal', tc);
-        doc.text(v, col.align==='right'?vx+col.w-2:col.align==='center'?vx+col.w/2:vx+2, cy+4.5, {align:col.align==='center'?'center':col.align==='right'?'right':'left', maxWidth:col.w-3});
-        vx += col.w;
-      });
-      cy += 6.5;
-    });
-    drawFooter(3, TOTAL_PAGES);
-
-    // ══════════════════════
-    // PAGE 4 — ARR CHART (canvas capture)
-    // ══════════════════════
-    doc.addPage();
-    drawHeader('ARR & MRR Charts');
-
-    // Capture both chart canvases
-    const chartArr = document.getElementById('chart-arr');
-    const chartMrr = document.getElementById('chart-mrr');
-    const chartCust = document.getElementById('chart-cust');
-    const chartDraft = document.getElementById('chart-draft');
-
-    let imgY = 20;
-    const captureChart = async (canvas, x, y, w, h) => {
-      if (!canvas) return;
-      try {
-        const imgData = canvas.toDataURL('image/png');
-        // White background box
-        fillRect(x, y, w, h, WHITE);
-        doc.setDrawColor(...MGRAY); doc.setLineWidth(0.3); doc.rect(x, y, w, h);
-        doc.addImage(imgData, 'PNG', x+1, y+1, w-2, h-2);
-      } catch(e) { console.warn('Chart capture failed', e); }
+    const drawCustHdrs=(atY)=>{
+      fr(cX,atY,cTW,7,ORANGE);let hx=cX;
+      cCols.forEach(col=>{sf(6,'bold',WHITE);doc.text(col.h,col.a==='right'?hx+col.w-2:col.a==='center'?hx+col.w/2:hx+2,atY+5,{align:col.a==='center'?'center':col.a==='right'?'right':'left'});hx+=col.w;});
+      return atY+7;
     };
+    cy=drawCustHdrs(cy);
 
-    await captureChart(chartArr,   10,  20, 135, 80);
-    await captureChart(chartMrr,  152,  20, 135, 80);
-    await captureChart(chartCust,  10, 108, 135, 70);
-    await captureChart(chartDraft,152, 108, 135, 70);
-
-    // Chart labels
-    setFont(7.5, 'bold', [107,107,126]);
-    doc.text('ARR Ramp vs. Targets', 77, 18, {align:'center'});
-    doc.text('Monthly Recurring Revenue (MRR)', 219, 18, {align:'center'});
-    doc.text('Cumulative Customers', 77, 106, {align:'center'});
-    doc.text('Cumulative Drafters', 219, 106, {align:'center'});
-
-    drawFooter(4, TOTAL_PAGES);
+    const drawCustRow=(idx, label, status, goLive, isExisting, rowBg)=>{
+      if(cy+6>PH-12){drawFooter(pgNum,5);doc.addPage();pgNum++;drawHeader('Customer Roster (continued)');cy=drawCustHdrs(20);}
+      const c=getCust(idx);const mrr=c.drafters*p.dpm;
+      fr(cX,cy,cTW,6,rowBg);dl(cX,cy+6,cX+cTW,cy+6,MGRAY,0.15);
+      const vals=[String(idx+1),c.name||label,status,goLive,String(c.drafters),fmtM(mrr),fmtM(mrr*12)];
+      let vx=cX;
+      vals.forEach((v,vi)=>{
+        const col=cCols[vi];
+        const tc=vi===2?(isExisting?GREEN:[37,99,168]):DARK;
+        sf(6,vi===1?'bold':'normal',tc);
+        doc.text(v,col.a==='right'?vx+col.w-2:col.a==='center'?vx+col.w/2:vx+2,cy+4.2,{align:col.a==='center'?'center':col.a==='right'?'right':'left',maxWidth:col.w-3});
+        vx+=col.w;
+      });
+      cy+=6;
+    };
+    for(let i=0;i<p.sc;i++) drawCustRow(i,`Customer ${i+1}`,'ACTIVE','Pre-program',true,i%2===0?GREEN_BG:WHITE);
+    glList.forEach((gl,i)=>drawCustRow(p.sc+i,`Customer ${p.sc+i+1}`,'SCHEDULED',monthLabel(gl.y,gl.m),false,i%2===0?WHITE:LGRAY));
+    drawFooter(pgNum, 5);
 
     // ── Save ──
-    const fname = `INNERGY-ARR-Ramp-Plan-${new Date().toISOString().slice(0,10)}.pdf`;
-    doc.save(fname);
+    doc.save(`INNERGY-ARR-Ramp-Plan-${new Date().toISOString().slice(0,10)}.pdf`);
 
   } catch(err) {
     console.error('PDF export failed:', err);
-    alert('PDF export failed. Please try again or use Export CSV instead.');
+    alert('PDF export failed: ' + err.message);
   } finally {
     btn.textContent = 'Export PDF';
     btn.disabled = false;
